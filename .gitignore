@@ -3,6 +3,7 @@ templates/*
 __pycache__/
 .vscode/
 bop_toolkit/*
+croco/*
 things_to_do.txt
 debug_imgs/*
 zs6d_old.py
