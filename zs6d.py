@@ -8,7 +8,7 @@ from PIL import Image
 import cv2
 import pose_utils.utils as utils
 import logging
-from src.pose_extractor import PoseViTExtractor
+from src.pose_extractor import PoseViTExtractor, PoseCroCoExtractor
 
 class ZS6D:
 
@@ -34,7 +34,8 @@ class ZS6D:
 
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
-        self.extractor = PoseViTExtractor(model_type=self.model_type, stride=self.stride, device=self.device)
+        #self.extractor = PoseViTExtractor(model_type=self.model_type, stride=self.stride, device=self.device)
+        self.extractor = PoseCroCoExtractor(model_type=self.model_type, stride=self.stride, device=self.device)
 
         self.templates_desc = {}
         templates_gt_subset = {}
