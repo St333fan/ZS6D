@@ -17,6 +17,7 @@ import pose_utils.vis_utils as vis_utils
 import numpy as np
 import time
 import matplotlib.pyplot as plt
+import torch
 
 # Loading a ground truth file to access segmentation masks to test zs6d:
 with open(os.path.join(config['gt_path']), 'r') as f:
@@ -24,6 +25,8 @@ with open(os.path.join(config['gt_path']), 'r') as f:
 
 img_id = '000048_1'
 #img_id = '8'
+
+model = torch.load('/home/imw-mmi/PycharmProjects/ZS6D/pretrained_models/CroCo.pth')
 
 
 for i in range(len(data_gt[img_id])):
