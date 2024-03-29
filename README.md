@@ -63,7 +63,12 @@ To generate templates from a object model to perform inference, we refer to the 
 
 
 ## Inference:
-After setting up your_template_config.json you can instantiate your ZS6D module and perform inference. An example is provided in:
+
+1. download the pretrained croco and put it into the pretrained_models folder
+
+```wget https://download.europe.naverlabs.com/ComputerVision/CroCo/CroCo.pth -P pretrained_models/```
+
+2. After setting up your_template_config.json you can instantiate your ZS6D module and perform inference. An example is provided in:
 
 ```test_zs6d.ipynb```
 
