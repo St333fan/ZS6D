@@ -33,9 +33,10 @@ class ZS6D:
             raise
 
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
-
-        #self.extractor = PoseViTExtractor(model_type=self.model_type, stride=self.stride, device=self.device)
-        self.extractor = PoseCroCoExtractor(model_type=self.model_type, stride=self.stride, device=self.device)
+        if model_type == 'croco':
+            self.extractor = PoseCroCoExtractor(model_type=self.model_type, stride=self.stride, device=self.device)
+        else:
+            self.extractor = PoseViTExtractor(model_type=self.model_type, stride=self.stride, device=self.device)
 
         self.templates_desc = {}
         templates_gt_subset = {}

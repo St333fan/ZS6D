@@ -383,7 +383,7 @@ class CroCoExtractor:
 
             # model = torch.hub.load('facebookresearch/dinov2', 'dinov2_vits14')
         elif 'croco' in model_type:
-            ckpt = torch.load('/home/imw-mmi/PycharmProjects/ZS6D/pretrained_models/CroCo.pth')
+            ckpt = torch.load('/home/imw/PycharmProjects/ZS6D/pretrained_models/CroCo.pth')
             model = CroCoNet(**ckpt.get('croco_kwargs', {}))
 
         else:  # model from timm -- load weights from timm to dino model (enables working on arbitrary size images).
@@ -514,7 +514,7 @@ class CroCoExtractor:
         :param layers: layers from which to extract features.
         :param facet: facet to extract. One of the following options: ['key' | 'query' | 'value' | 'token' | 'attn']
         """
-        for block_idx, block in enumerate(self.model.enc_blocks):
+        for block_idx, block in enumerate(self.model.dec_blocks):
             if block_idx in layers:
                 if facet == 'token':
                     self.hook_handlers.append(block.register_forward_hook(self._get_hook(facet)))
@@ -657,8 +657,8 @@ def str2bool(v):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Facilitate ViT Descriptor extraction.')
-    parser.add_argument('--image_path', default='/home/imw-mmi/PycharmProjects/ZS6D/test/000001.png', type=str, required=False, help='path of the extracted image.')
-    parser.add_argument('--output_path', default='/home/imw-mmi/PycharmProjects/ZS6D', type=str, required=False, help='path to file containing extracted descriptors.')
+    parser.add_argument('--image_path', default='/home/imw/PycharmProjects/ZS6D/test/000001.png', type=str, required=False, help='path of the extracted image.')
+    parser.add_argument('--output_path', default='/home/imw/PycharmProjects/ZS6D', type=str, required=False, help='path to file containing extracted descriptors.')
     parser.add_argument('--load_size', default=224, type=int, help='load size of the input image.')
     parser.add_argument('--stride', default=4, type=int, help="""stride of first convolution layer. 
                                                               small stride -> higher resolution.""")
@@ -676,13 +676,32 @@ if __name__ == "__main__":
     with torch.no_grad():
         device = 'cuda' if torch.cuda.is_available() else 'cpu'
         extractor = ViTExtractor(args.model_type, args.stride, device=device)
-        extractor2 = CroCoExtractor(args.model_type, args.stride, device=device)
+
+        extractor_croco = CroCoExtractor(model_type='croco', stride=args.stride, device=device)
 
         image_batch, image_pil = extractor.preprocess(args.image_path, args.load_size)
-        image_batch2, image_pil2 = extractor2.preprocess(args.image_path, args.load_size)
+        image_batch_croco, image_pil_croco = extractor_croco.preprocess(args.image_path, args.load_size)
+        # Resize the tensor to (1, 3, 224, 224) using bilinear interpolation
+        image_batch_croco = torch.nn.functional.interpolate(image_batch_croco, size=(224, 224), mode='bilinear', align_corners=False)
+
         print(f"Image {args.image_path} is preprocessed to tensor of size {image_batch.shape}.")
-        descriptors = extractor.extract_descriptors(image_batch.to(device), args.layer, args.facet, args.bin)
-        descriptors2 = extractor2.extract_descriptors(image_batch.to(device), args.layer, args.facet, args.bin)
+        descriptors = extractor.extract_descriptors(image_batch.to(device), layer=9, facet='key', bin= args.bin)
+        descriptors2 = extractor_croco.extract_descriptors(image_batch_croco.to(device), layer=7, facet='key', bin= args.bin)
+
+        import matplotlib.pyplot as plt
+        import torch
+        # Assuming your descriptors are in a tensor called 'descriptors2'
+        descriptors_2d = descriptors2.cpu().squeeze(0).squeeze(0)
+
+        # Create the heatmap
+        plt.figure(figsize=(12, 6))  # Adjust the figure size
+        plt.imshow(descriptors_2d, cmap='viridis', aspect='auto')  # Set aspect to 'auto' to adjust the aspect ratio
+        plt.colorbar()
+        plt.title('Heatmap of Descriptors')
+        plt.xlabel('Descriptor Dimension')
+        plt.ylabel('Spatial Location')
+        plt.show()
+
         print(f"Descriptors are of size: {descriptors.shape}")
         print(f"Descriptors are of size: {descriptors2.shape}")
         # torch.save(descriptors, args.output_path)
