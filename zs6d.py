@@ -33,7 +33,7 @@ class ZS6D:
             raise
 
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
-        if model_type == 'croco':
+        if self.model_type == 'croco':
             self.extractor = PoseCroCoExtractor(model_type=self.model_type, stride=self.stride, device=self.device)
         else:
             self.extractor = PoseViTExtractor(model_type=self.model_type, stride=self.stride, device=self.device)
@@ -67,9 +67,18 @@ class ZS6D:
             img_crop = Image.fromarray(img_crop)
             img_prep, _, _ = self.extractor.preprocess(img_crop, load_size=224)
 
-            with torch.no_grad():
-                desc = self.extractor.extract_descriptors(img_prep.to(self.device), layer=11, facet='key', bin=False, include_cls=True)
-                desc = desc.squeeze(0).squeeze(0).detach().cpu()
+            if self.model_type != 'croco':
+                with torch.no_grad():
+                    desc = self.extractor.extract_descriptors(img_prep.to(self.device), layer=11, facet='key',
+                                                              bin=False, include_cls=True)
+                    desc = desc.squeeze(0).squeeze(0).detach().cpu()
+            else:
+                img_prep = torch.nn.functional.interpolate(img_prep, size=(224, 224), mode='bilinear',
+                                                                    align_corners=False)
+                with torch.no_grad():
+                    desc = self.extractor.extract_descriptors(img_prep.to(self.device), layer=11, facet='key',
+                                                              bin=False, include_cls=True)
+                    desc = desc.squeeze(0).squeeze(0).detach().cpu()
 
             matched_templates = utils.find_template_cpu(desc, self.templates_desc[obj_id], num_results=1)
 
