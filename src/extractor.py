@@ -514,7 +514,7 @@ class CroCoExtractor:
         :param layers: layers from which to extract features.
         :param facet: facet to extract. One of the following options: ['key' | 'query' | 'value' | 'token' | 'attn']
         """
-        for block_idx, block in enumerate(self.model.dec_blocks):
+        for block_idx, block in enumerate(self.model.enc_blocks):
             if block_idx in layers:
                 if facet == 'token':
                     self.hook_handlers.append(block.register_forward_hook(self._get_hook(facet)))
@@ -635,7 +635,7 @@ class CroCoExtractor:
         :param batch: batch to extract saliency maps for. Has shape BxCxHxW.
         :return: a tensor of saliency maps. has shape Bxt-1
         """
-        assert self.model_type == "dino_vits8", f"saliency maps are supported only for dino_vits model_type."
+        assert self.model_type == "dino_vits8" or self.model_type == "croco", f"saliency maps are supported only for dino_vits model_type."
         self._extract_features(batch, [11], 'attn')
         head_idxs = [0, 2, 4, 5]
         curr_feats = self._feats[0]  # Bxhxtxt

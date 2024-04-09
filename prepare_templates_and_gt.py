@@ -3,7 +3,7 @@ import os
 import json
 import numpy as np
 import torch
-from src.pose_extractor import PoseViTExtractor
+from src.pose_extractor import PoseViTExtractor, PoseCroCoExtractor
 from tools.ply_file_to_3d_coord_model import convert_unique
 from rendering.renderer_xyz import Renderer
 from rendering.model import Model3D
@@ -61,7 +61,8 @@ if __name__=="__main__":
 
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
-    extractor = PoseViTExtractor(model_type='dino_vits8', stride=4, device=device)
+    #extractor = PoseViTExtractor(model_type='dino_vits8', stride=4, device=device)
+    extractor = PoseCroCoExtractor(model_type='croco', stride=4, device=device)
 
     cam_K = np.array(config['cam_K']).reshape((3,3))
 
@@ -114,7 +115,14 @@ if __name__=="__main__":
                     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
                     img_crop, crop_x, crop_y = img_utils.make_quadratic_crop(img, [x, y, w, h])
                     img_prep, img_crop, _ = extractor.preprocess(Image.fromarray(img_crop), load_size=224)
-                    desc = extractor.extract_descriptors(img_prep.to(device), layer=11, facet='key', bin=False, include_cls=True)
+
+                    img_prep = torch.nn.functional.interpolate(img_prep, size=(224, 224), mode='bilinear',
+                                                               align_corners=False)
+
+                    #desc = extractor.extract_descriptors(img_prep.to(device), layer=11, facet='key', bin=False, include_cls=True)
+                    desc = extractor.extract_descriptors(img_prep.to(device), layer=11, facet='key',
+                                                              bin=False, include_cls=True)
+
                     desc = desc.squeeze(0).squeeze(0).detach().cpu().numpy()
 
                     R = obj_poses[i][:3,:3]

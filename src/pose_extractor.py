@@ -476,7 +476,7 @@ class PoseCroCoExtractor(extractor.CroCoExtractor):
         return descs
 
     def find_correspondences_fastkmeans(self, pil_img1, pil_img2, num_pairs: int = 10, load_size: int = 224,
-                                        layer: int = 9, facet: str = 'key', bin: bool = True,
+                                        layer: int = 9, facet: str = 'key', bin: bool = False,
                                         thresh: float = 0.05) -> Tuple[
         List[Tuple[float, float]], List[Tuple[float, float]], Image.Image, Image.Image]:
 
@@ -484,9 +484,13 @@ class PoseCroCoExtractor(extractor.CroCoExtractor):
 
         start_time_desc = time.time()
         image1_batch, image1_pil, scale_factor = self.preprocess(pil_img1, load_size)
-        descriptors1 = self.extract_descriptors(image1_batch.to(self.device), layer, facet, bin)
+        image1_batch = torch.nn.functional.interpolate(image1_batch, size=(224, 224), mode='bilinear',
+                                                   align_corners=False)
+        descriptors1 = self.extract_descriptors(image1_batch.to(self.device), layer, facet, bin,)
         num_patches1, load_size1 = self.num_patches, self.load_size
         image2_batch, image2_pil, scale_factor = self.preprocess(pil_img2, load_size)
+        image2_batch = torch.nn.functional.interpolate(image2_batch, size=(224, 224), mode='bilinear',
+                                                       align_corners=False)
         descriptors2 = self.extract_descriptors(image2_batch.to(self.device), layer, facet, bin)
         num_patches2, load_size2 = self.num_patches, self.load_size
         end_time_desc = time.time()
@@ -512,8 +516,9 @@ class PoseCroCoExtractor(extractor.CroCoExtractor):
         elapsed_time_chunk_cosine = end_time_chunk_cosine - start_time_chunk_cosine
 
         start_time_bb = time.time()
+
         # calculate best buddies
-        image_idxs = torch.arange(num_patches1[0] * num_patches1[1], device=self.device)
+        image_idxs = torch.arange(19, device=self.device)#num_patches1[0] * num_patches1[1], device=self.device)
         sim_1, nn_1 = torch.max(similarities, dim=-1)  # nn_1 - indices of block2 closest to block1
         sim_2, nn_2 = torch.max(similarities, dim=-2)  # nn_2 - indices of block1 closest to block2
         sim_1, nn_1 = sim_1[0, 0], nn_1[0, 0]
@@ -523,7 +528,7 @@ class PoseCroCoExtractor(extractor.CroCoExtractor):
 
         # remove best buddies where at least one descriptor is marked bg by saliency mask.
         fg_mask2_new_coors = nn_2[fg_mask2]
-        fg_mask2_mask_new_coors = torch.zeros(num_patches1[0] * num_patches1[1], dtype=torch.bool, device=self.device)
+        fg_mask2_mask_new_coors = torch.zeros(19, dtype=torch.bool, device=self.device)#num_patches1[0] * num_patches1[1], dtype=torch.bool, device=self.device)
         fg_mask2_mask_new_coors[fg_mask2_new_coors] = True
         bbs_mask = torch.bitwise_and(bbs_mask, fg_mask1)
         bbs_mask = torch.bitwise_and(bbs_mask, fg_mask2_mask_new_coors)
@@ -583,10 +588,10 @@ class PoseCroCoExtractor(extractor.CroCoExtractor):
         img2_x_to_show = (img2_indices_to_show % num_patches2[1]).cpu().numpy()
         points1, points2 = [], []
         for y1, x1, y2, x2 in zip(img1_y_to_show, img1_x_to_show, img2_y_to_show, img2_x_to_show):
-            x1_show = (int(x1) - 1) * self.stride[1] + self.stride[1] + self.p // 2
-            y1_show = (int(y1) - 1) * self.stride[0] + self.stride[0] + self.p // 2
-            x2_show = (int(x2) - 1) * self.stride[1] + self.stride[1] + self.p // 2
-            y2_show = (int(y2) - 1) * self.stride[0] + self.stride[0] + self.p // 2
+            x1_show = (int(x1) - 1) * self.stride[1] + self.stride[1] + self.p[0] // 2
+            y1_show = (int(y1) - 1) * self.stride[0] + self.stride[0] + self.p[0] // 2
+            x2_show = (int(x2) - 1) * self.stride[1] + self.stride[1] + self.p[0] // 2
+            y2_show = (int(y2) - 1) * self.stride[0] + self.stride[0] + self.p[0] // 2
             points1.append((y1_show, x1_show))
             points2.append((y2_show, x2_show))
 
@@ -609,9 +614,13 @@ class PoseCroCoExtractor(extractor.CroCoExtractor):
 
         start_time_desc = time.time()
         image1_batch, image1_pil, scale_factor = self.preprocess(pil_img1, load_size)
+        image1_batch = torch.nn.functional.interpolate(image1_batch, size=(224, 224), mode='bilinear',
+                                                       align_corners=False)
         descriptors1 = self.extract_descriptors(image1_batch.to(self.device), layer, facet, bin)
         num_patches1, load_size1 = self.num_patches, self.load_size
         image2_batch, image2_pil, scale_factor = self.preprocess(pil_img2, load_size)
+        image2_batch = torch.nn.functional.interpolate(image2_batch, size=(224, 224), mode='bilinear',
+                                                       align_corners=False)
         descriptors2 = self.extract_descriptors(image2_batch.to(self.device), layer, facet, bin)
         num_patches2, load_size2 = self.num_patches, self.load_size
         end_time_desc = time.time()
