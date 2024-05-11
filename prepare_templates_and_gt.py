@@ -116,13 +116,7 @@ if __name__=="__main__":
                     img_crop, crop_x, crop_y = img_utils.make_quadratic_crop(img, [x, y, w, h])
                     img_prep, img_crop, _ = extractor.preprocess(Image.fromarray(img_crop), load_size=224)
 
-                    img_prep = torch.nn.functional.interpolate(img_prep, size=(224, 224), mode='bilinear',
-                                                               align_corners=False)
-
-                    #desc = extractor.extract_descriptors(img_prep.to(device), layer=11, facet='key', bin=False, include_cls=True)
-                    desc = extractor.extract_descriptors(img_prep.to(device), layer=11, facet='key',
-                                                              bin=False, include_cls=True)
-
+                    desc = extractor.extract_descriptors(img_prep.to(device), layer=11, facet='key', bin=False, include_cls=False)
                     desc = desc.squeeze(0).squeeze(0).detach().cpu().numpy()
 
                     R = obj_poses[i][:3,:3]

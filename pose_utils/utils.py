@@ -174,7 +174,7 @@ def get_pose_from_correspondences(points1, points2, y_offset, x_offset, img_uv, 
                 valid_points1.append(point1)
                 valid_points2.append(point2)
     except:
-        print("dsdf")
+        print("Failed to get get_pose_from_correspondences... ")
     
     # Check if enough correspondences for PnPRansac
     if len(valid_points1) < 4:

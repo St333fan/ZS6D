@@ -70,7 +70,7 @@ class ViTExtractor:
             
             # model = torch.hub.load('facebookresearch/dinov2', 'dinov2_vits14')
         elif 'croco' in model_type:
-            ckpt = torch.load('/home/imw-mmi/PycharmProjects/ZS6D/pretrained_models/CroCo.pth')
+            ckpt = torch.load('/home/stefan/PycharmProjects/ZS6D/pretrained_models/CroCo.pth')
             model = CroCoNet(**ckpt.get('croco_kwargs', {}))
 
         else:  # model from timm -- load weights from timm to dino model (enables working on arbitrary size images).
@@ -519,7 +519,7 @@ class CroCoExtractor:
         :param layers: layers from which to extract features.
         :param facet: facet to extract. One of the following options: ['key' | 'query' | 'value' | 'token' | 'attn']
         """
-        for block_idx, block in enumerate(self.model.dec_blocks): # enc_block or dec_block
+        for block_idx, block in enumerate(self.model.enc_blocks): # enc_block or dec_block
             if block_idx in layers:
                 if facet == 'token':
                     self.hook_handlers.append(block.register_forward_hook(self._get_hook(facet)))
@@ -623,7 +623,7 @@ class CroCoExtractor:
         assert facet in ['key', 'query', 'value', 'token'], f"""{facet} is not a supported facet for descriptors. 
                                                              choose from ['key' | 'query' | 'value' | 'token'] """
         self._extract_features(batch, [layer], facet)
-        x = self._feats[0]
+        x = self._feats[0]# 1 16 196 31
         if facet == 'token':
             x.unsqueeze_(dim=1)  # Bx1xtxd
         if not include_cls:
@@ -729,7 +729,7 @@ if __name__ == "__main__":
 
         print(f"Image {args.image_path} is preprocessed to tensor of size {image_batch.shape}.")
         descriptors = extractor.extract_descriptors(image_batch.to(device), layer=9, facet='key', bin= args.bin)
-        descriptors2 = extractor_croco.extract_descriptors(image_batch_croco.to(device), layer=7, facet='key', bin= args.bin, include_cls=True)
+        descriptors2 = extractor_croco.extract_descriptors(image_batch_croco.to(device), layer=11, facet='key', bin=False, include_cls=False)
 
         import matplotlib.pyplot as plt
         import torch
