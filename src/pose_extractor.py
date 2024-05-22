@@ -487,13 +487,13 @@ class PoseCroCoExtractor(extractor.CroCoExtractor):
         image1_batch, image1_pil, scale_factor = self.preprocess(pil_img1, load_size)
         image1_batch = torch.nn.functional.interpolate(image1_batch, size=(224, 224), mode='bilinear',
                                                        align_corners=False)
-        descriptors1 = self.extract_descriptors(image1_batch.to(self.device), layer, facet, bin, include_cls=False)
+        descriptors1 = self.extract_descriptors(image1_batch.to(self.device), layer, facet, bin, include_cls=True)
         num_patches1, load_size1 = self.num_patches, self.load_size
         # templates
         image2_batch, image2_pil, scale_factor = self.preprocess(pil_img2, load_size)
         image2_batch = torch.nn.functional.interpolate(image2_batch, size=(224, 224), mode='bilinear',
                                                        align_corners=False)
-        descriptors2 = self.extract_descriptors(image2_batch.to(self.device), layer, facet, bin, include_cls=False)
+        descriptors2 = self.extract_descriptors(image2_batch.to(self.device), layer, facet, bin, include_cls=True)
         num_patches2, load_size2 = self.num_patches, self.load_size
         end_time_desc = time.time()
         elapsed_desc = end_time_desc - start_time_desc

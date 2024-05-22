@@ -62,7 +62,7 @@ if __name__=="__main__":
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
     #extractor = PoseViTExtractor(model_type='dino_vits8', stride=4, device=device)
-    extractor = PoseCroCoExtractor(model_type='croco', stride=4, device=device)
+    extractor = PoseCroCoExtractor(model_type='croco', stride=16, device=device)# there was 4
 
     cam_K = np.array(config['cam_K']).reshape((3,3))
 
@@ -116,7 +116,7 @@ if __name__=="__main__":
                     img_crop, crop_x, crop_y = img_utils.make_quadratic_crop(img, [x, y, w, h])
                     img_prep, img_crop, _ = extractor.preprocess(Image.fromarray(img_crop), load_size=224)
 
-                    desc = extractor.extract_descriptors(img_prep.to(device), layer=11, facet='key', bin=False, include_cls=False)
+                    desc = extractor.extract_descriptors(img_prep.to(device), layer=11, facet='key', bin=False, include_cls=True)
                     desc = desc.squeeze(0).squeeze(0).detach().cpu().numpy()
 
                     R = obj_poses[i][:3,:3]

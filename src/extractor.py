@@ -623,7 +623,7 @@ class CroCoExtractor:
         assert facet in ['key', 'query', 'value', 'token'], f"""{facet} is not a supported facet for descriptors. 
                                                              choose from ['key' | 'query' | 'value' | 'token'] """
         self._extract_features(batch, [layer], facet)
-        x = self._feats[0]# 1 16 196 31
+        x = self._feats[1]# 1 16 196 31
         if facet == 'token':
             x.unsqueeze_(dim=1)  # Bx1xtxd
         if not include_cls:
@@ -646,10 +646,11 @@ class CroCoExtractor:
         :return: a tensor of saliency maps. has shape Bxt-1
         """
         assert self.model_type == "dino_vits8" or self.model_type == "croco", f"saliency maps are supported only for dino_vits model_type."
-        self._extract_features(batch, [7], 'key') # tested also with attn
+        self._extract_features(batch, [11], 'key') # tested also with attn
         head_idxs = [0, 2, 4, 5]
-        curr_feats = self._feats[0]  # Bxhxtxt
+        curr_feats = self._feats[1]  # Bxhxtxt
         cls_attn_map = curr_feats[:, head_idxs, 0, 1:].mean(dim=1)  # Bx(t-1)
+        cls_attn_map = curr_feats[:, head_idxs, :, 0].mean(dim=1)  # Bx(t-1)
         temp_mins, temp_maxs = cls_attn_map.min(dim=1)[0], cls_attn_map.max(dim=1)[0]
         cls_attn_maps = (cls_attn_map - temp_mins) / (temp_maxs - temp_mins)  # normalize to range [0,1]
         return cls_attn_maps

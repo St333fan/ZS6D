@@ -84,7 +84,7 @@ class ZS6D:
             plt.imsave('channel_1.png', channel, cmap='gray')
             with torch.no_grad():
                 desc = self.extractor.extract_descriptors(img_prep.to(self.device), layer=11, facet='key',
-                                                          bin=False, include_cls=False)
+                                                          bin=False, include_cls=True)
                 desc = desc.squeeze(0).squeeze(0).detach().cpu()
 
         matched_templates = utils.find_template_cpu(desc, self.templates_desc[obj_id], num_results=1)
