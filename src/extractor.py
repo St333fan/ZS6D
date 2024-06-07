@@ -729,9 +729,17 @@ if __name__ == "__main__":
         plt.imsave('channel_00.png', channel, cmap='gray')
 
         print(f"Image {args.image_path} is preprocessed to tensor of size {image_batch.shape}.")
-        descriptors = extractor.extract_descriptors(image_batch.to(device), layer=9, facet='key', bin= args.bin)
-        descriptors2 = extractor_croco.extract_descriptors(image_batch_croco.to(device), layer=11, facet='key', bin=False, include_cls=False)
-
+        descriptors = extractor.extract_descriptors(image_batch.to(device), layer=9, facet='key', bin=args.bin)
+        map = extractor.extract_saliency_maps(image_batch_croco.to(device))
+        descriptors2 = extractor_croco.extract_descriptors(image_batch_croco.to(device), layer=11, facet='key', bin=False, include_cls=True)
+        map2 = extractor_croco.extract_saliency_maps(image_batch_croco.to(device))
+        map2 = map2.view(1,4,4)
+        map2 = F.interpolate(map2.unsqueeze(1), size=(224, 224),
+                                      mode='bilinear', align_corners=False)
+        saliency_maps = map2.squeeze(1)
+        saliency_maps = saliency_maps.cpu().numpy()
+        import numpy as np
+        plt.imsave('saliency_maps10.png', saliency_maps[0])
         import matplotlib.pyplot as plt
         import torch
         # Assuming your descriptors are in a tensor called 'descriptors2'
