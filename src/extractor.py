@@ -735,7 +735,7 @@ if __name__ == "__main__":
         map2 = extractor_croco.extract_saliency_maps(image_batch_croco.to(device))
         map2 = map2.view(1,4,4)
         map2 = F.interpolate(map2.unsqueeze(1), size=(224, 224),
-                                      mode='bilinear', align_corners=False)
+                                      mode='bilinear', align_corners=False)#
         saliency_maps = map2.squeeze(1)
         saliency_maps = saliency_maps.cpu().numpy()
         import numpy as np
