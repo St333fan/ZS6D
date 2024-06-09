@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Union, List, Tuple
 from PIL import Image
 from croco.models.croco import CroCoNet
+from croco.models.croco_downstream import CroCoDownstreamMonocularEncoder
 
 
 class ViTExtractor:
@@ -357,14 +358,15 @@ class CroCoExtractor:
             self.model = CroCoExtractor.create_model(model_type)
 
 
-        #self.model = CroCoExtractor.patch_vit_resolution(self.model, stride=stride)
+        self.model = CroCoExtractor.patch_vit_resolution(self.model, stride=stride)
         self.model.eval()
         self.model.to(self.device)
         self.p = self.model.patch_embed.patch_size
         self.stride = self.model.patch_embed.proj.stride
 
-        self.mean = (0.485, 0.456, 0.406) if "dino" in self.model_type else (0.5, 0.5, 0.5)
-        self.std = (0.229, 0.224, 0.225) if "dino" in self.model_type else (0.5, 0.5, 0.5)
+        # adding crocov2 also
+        self.mean = (0.485, 0.456, 0.406) if "croco" in self.model_type else (0.5, 0.5, 0.5)
+        self.std = (0.229, 0.224, 0.225) if "croco" in self.model_type else (0.5, 0.5, 0.5)
 
         self._feats = []
         self.hook_handlers = []
@@ -385,7 +387,11 @@ class CroCoExtractor:
             # model = torch.hub.load('facebookresearch/dinov2', 'dinov2_vits14')
         elif 'croco' in model_type:
             ckpt = torch.load('/home/stefan/PycharmProjects/ZS6D/pretrained_models/CroCo.pth')
-            model = CroCoNet(**ckpt.get('croco_kwargs', {}),mask_ratio=0)
+            if True:
+                head = PassThroughHead()
+                model = CroCoDownstreamMonocularEncoder(**ckpt.get('croco_kwargs', {}),head=head, mask_ratio=0)
+            else:
+                model = CroCoNet(**ckpt.get('croco_kwargs', {}), mask_ratio=0)
 
         elif 'crocov2' in model_type:
             ckpt = torch.load('/home/stefan/PycharmProjects/ZS6D/pretrained_models/CroCo_V2_ViTLarge_BaseDecoder.pth')
@@ -451,7 +457,7 @@ class CroCoExtractor:
         :param stride: the new stride parameter.
         :return: the adjusted model
         """
-        patch_size = model.patch_embed.patch_size
+        patch_size = model.patch_embed.patch_size[0] # changed beacuse batch tuble
         if stride == patch_size:  # nothing to do
             return model
 
@@ -555,10 +561,11 @@ class CroCoExtractor:
         B, C, H, W = batch.shape
         self._feats = []
         self._register_hooks(layers, facet)
-        if batch2 == None:
-            _ = self.model(batch, batch)
-        else:
-            _ = self.model(batch, batch2)
+        with torch.inference_mode():
+            if batch2 == None:
+                _ = self.model(batch)#, batch)
+            else:
+                _ = self.model(batch, batch2)
         self._unregister_hooks()
         self.load_size = (H, W)
         self.num_patches = (1 + (H - self.p[0]) // self.stride[0], 1 + (W - self.p[0]) // self.stride[1])
@@ -627,7 +634,7 @@ class CroCoExtractor:
         assert facet in ['key', 'query', 'value', 'token'], f"""{facet} is not a supported facet for descriptors. 
                                                              choose from ['key' | 'query' | 'value' | 'token'] """
         self._extract_features(batch, batch2=None, layers=[layer], facet=facet)
-        x = self._feats[1]# 1 16 196 31
+        x = self._feats[0]# 1 16 196 31 0--for mono 1--for binocular
         if facet == 'token':
             x.unsqueeze_(dim=1)  # Bx1xtxd
         if not include_cls:
@@ -652,7 +659,7 @@ class CroCoExtractor:
         assert self.model_type == "dino_vits8" or self.model_type == "croco", f"saliency maps are supported only for dino_vits model_type."
         self._extract_features(batch, batch2=batch2, layers=[11], facet='key') # tested also with attn
         head_idxs = [0, 2, 4, 5]
-        curr_feats = self._feats[1]  # Bxhxtxt  # kann man 1 oder 0 stellen??
+        curr_feats = self._feats[0]  # Bxhxtxt  # kann man bionocular--1 oder mono--0 stellen??
         cls_attn_map = curr_feats[:, head_idxs, 0, 1:].mean(dim=1)  # Bx(t-1)
         cls_attn_map = curr_feats[:, head_idxs, :, 0].mean(dim=1)  # Bx(t-1)
         temp_mins, temp_maxs = cls_attn_map.min(dim=1)[0], cls_attn_map.max(dim=1)[0]
@@ -669,6 +676,22 @@ def str2bool(v):
         return False
     else:
         raise argparse.ArgumentTypeError('Boolean value expected.')
+
+
+import torch.nn as nn
+
+
+class PassThroughHead(nn.Module):
+    def __init__(self):
+        super(PassThroughHead, self).__init__()
+
+    def setup(self, encoder):
+        pass
+
+    def forward(self, x, img_info):
+        # Simply return the features without any modifications
+        return x
+
 
 import torch
 import torch.nn.functional as F
@@ -692,7 +715,7 @@ def pad_and_resize(image_batch):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Facilitate ViT Descriptor extraction.')
-    parser.add_argument('--image_path', default='/home/stefan/PycharmProjects/ZS6D/test/000001_crop.png', type=str, required=False, help='path of the extracted image.')
+    parser.add_argument('--image_path', default='/home/stefan/PycharmProjects/ZS6D/test/channel_111.png', type=str, required=False, help='path of the extracted image.')
     parser.add_argument('--output_path', default='/home/stefan/PycharmProjects/ZS6D', type=str, required=False, help='path to file containing extracted descriptors.')
     parser.add_argument('--load_size', default=224, type=int, help='load size of the input image.')
     parser.add_argument('--stride', default=4, type=int, help="""stride of first convolution layer. 
@@ -709,11 +732,24 @@ if __name__ == "__main__":
     args = parser.parse_args()
     import matplotlib.pyplot as plt
 
+    import random
+    import numpy as np
+
+    # setting a seed so the model does not behave random
+    seed = 38
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    np.random.seed(seed)
+    random.seed(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+
     with torch.no_grad():
         device = 'cuda' if torch.cuda.is_available() else 'cpu'
         extractor = ViTExtractor(args.model_type, args.stride, device=device)
 
-        extractor_croco = CroCoExtractor(model_type='croco', stride=args.stride, device=device) #stride 16
+        extractor_croco = CroCoExtractor(model_type='croco', stride=16, device=device) #stride 16
 
         image_batch, image_pil = extractor.preprocess(args.image_path, args.load_size)
         image_batch_croco, image_pil_croco = extractor_croco.preprocess(args.image_path, args.load_size)
