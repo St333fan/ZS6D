@@ -14,6 +14,11 @@ from typing import Union, List, Tuple
 from PIL import Image
 from croco.models.croco import CroCoNet
 from croco.models.croco_downstream import CroCoDownstreamMonocularEncoder
+from torchvision.transforms import ToTensor, Normalize, Compose
+import numpy as np
+import matplotlib.pyplot as plt
+import torch
+import random
 
 
 class ViTExtractor:
@@ -715,7 +720,7 @@ def pad_and_resize(image_batch):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Facilitate ViT Descriptor extraction.')
-    parser.add_argument('--image_path', default='/home/stefan/PycharmProjects/ZS6D/test/channel_111.png', type=str, required=False, help='path of the extracted image.')
+    parser.add_argument('--image_path', default='/home/stefan/PycharmProjects/ZS6D/test/teddy.jpg', type=str, required=False, help='path of the extracted image.')
     parser.add_argument('--output_path', default='/home/stefan/PycharmProjects/ZS6D', type=str, required=False, help='path to file containing extracted descriptors.')
     parser.add_argument('--load_size', default=224, type=int, help='load size of the input image.')
     parser.add_argument('--stride', default=4, type=int, help="""stride of first convolution layer. 
@@ -730,13 +735,9 @@ if __name__ == "__main__":
     parser.add_argument('--bin', default='True', type=str2bool, help="create a binned descriptor if True.")
 
     args = parser.parse_args()
-    import matplotlib.pyplot as plt
-
-    import random
-    import numpy as np
 
     # setting a seed so the model does not behave random
-    seed = 38
+    seed = 33  # found by checking the saliency map
     torch.manual_seed(seed)
     torch.cuda.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
@@ -752,52 +753,71 @@ if __name__ == "__main__":
         extractor_croco = CroCoExtractor(model_type='croco', stride=16, device=device) #stride 16
 
         image_batch, image_pil = extractor.preprocess(args.image_path, args.load_size)
-        image_batch_croco, image_pil_croco = extractor_croco.preprocess(args.image_path, args.load_size)
-        image_batch_croco2, image_pil_croco2 = extractor_croco.preprocess('/home/stefan/PycharmProjects/ZS6D/test/channel_111.png', args.load_size)
+        image_batch_croco1, image_pil_croco = extractor_croco.preprocess('/home/stefan/PycharmProjects/ZS6D/test/000248.png', args.load_size)
+        image_batch_croco2, image_pil_croco2 = extractor_croco.preprocess('/home/stefan/PycharmProjects/ZS6D/test/000392.png', args.load_size)
 
-        channel = image_batch_croco[0, 0, :, :]
-        # Save the channel as a grayscale image
-        plt.imsave('channel_0.png', channel, cmap='gray')
 
-        # Save the channel as a grayscale image
-        #plt.imsave('channel_1.png', image_pil_croco, cmap='gray')
+        # visualize
+        #channel = image_batch_croco[0, 0, :, :]
+        #plt.imsave('channel_0.png', channel, cmap='gray')
 
         # Resize the tensor to (1, 3, 224, 224) using bilinear interpolation
-        #image_batch_croco = torch.nn.functional.interpolate(image_batch_croco, size=(224, 224), mode='bilinear', align_corners=False)
-        image_batch_croco = pad_and_resize(image_batch_croco)
+        image_batch_croco1 = pad_and_resize(image_batch_croco1)
         image_batch_croco2 = pad_and_resize(image_batch_croco2)
 
-        import torchvision.transforms
-        from torchvision.transforms import ToTensor, Normalize, Compose
-
-        channel = image_batch_croco[0, 0, :, :]
+        channel = image_batch_croco1[0, 0, :, :]
         # Save the channel as a grayscale image
         plt.imsave('channel_00.png', channel, cmap='gray')
-
+        # 'key', 'query', 'value']
         print(f"Image {args.image_path} is preprocessed to tensor of size {image_batch.shape}.")
-        descriptors = extractor.extract_descriptors(image_batch.to(device), layer=9, facet='key', bin=args.bin)
-        map = extractor.extract_saliency_maps(image_batch_croco.to(device))
-        descriptors2 = extractor_croco.extract_descriptors(image_batch_croco.to(device), layer=11, facet='key', bin=False, include_cls=True)
-        map2 = extractor_croco.extract_saliency_maps(image_batch_croco.to(device))#, batch2=image_batch_croco2.to(device))
-        map2 = map2.view(1,14,14)
-        map2 = F.interpolate(map2.unsqueeze(1), size=(224, 224),
-                                      mode='bilinear', align_corners=False)#
-        saliency_maps = map2.squeeze(1)
-        saliency_maps = saliency_maps.cpu().numpy()
-        import numpy as np
-        plt.imsave('saliency_maps_dose.png', saliency_maps[0])
-        import matplotlib.pyplot as plt
-        import torch
+        #descriptors1 = extractor.extract_descriptors(image_batch_croco1.to(device), layer=11, facet='key', bin=False, include_cls=True)
+        #descriptors2 = extractor.extract_descriptors(image_batch_croco2.to(device), layer=11, facet='key', bin=False, include_cls=True)
+        #map = extractor.extract_saliency_maps(image_batch_croco.to(device))
 
-        descriptors_2d = descriptors.cpu().squeeze(0).squeeze(0)
+        descriptors1 = extractor_croco.extract_descriptors(image_batch_croco1.to(device), layer=11, facet='key', bin=False, include_cls=True)
+        descriptors2 = extractor_croco.extract_descriptors(image_batch_croco2.to(device), layer=11, facet='key', bin=False, include_cls=True)
+        map1 = extractor_croco.extract_saliency_maps(image_batch_croco1.to(device))#, batch2=image_batch_croco2.to(device))
+        map1 = map1.view(1,14,14)
+        map1 = F.interpolate(map1.unsqueeze(1), size=(224, 224), mode='bilinear', align_corners=False)
+        saliency_maps1 = map1.squeeze(1)
+        saliency_maps1 = saliency_maps1.cpu().numpy()
+        plt.imsave('saliency_maps1.png', saliency_maps1[0])
+
+        map1 = extractor_croco.extract_saliency_maps(
+            image_batch_croco2.to(device))  # , batch2=image_batch_croco2.to(device))
+        map1 = map1.view(1, 14, 14)
+        map1 = F.interpolate(map1.unsqueeze(1), size=(224, 224), mode='bilinear', align_corners=False)
+        saliency_maps1 = map1.squeeze(1)
+        saliency_maps1 = saliency_maps1.cpu().numpy()
+        plt.imsave('saliency_maps2.png', saliency_maps1[0])
+
+
+        descriptors1_2d = descriptors1.cpu().squeeze(0).squeeze(0)
         descriptors2_2d = descriptors2.cpu().squeeze(0).squeeze(0)
+
+        # Calculate the dot product of the tensors
+        dot_product = torch.sum(descriptors1_2d * descriptors2_2d, dim=1)
+
+        # Calculate the norms of the tensors
+        norm_tensor1 = torch.norm(descriptors1_2d, dim=1)
+        norm_tensor2 = torch.norm(descriptors2_2d, dim=1)
+
+        # Calculate the cosine similarity
+        cosine_similarity = dot_product / (norm_tensor1 * norm_tensor2)
+        print("Cosine similarity:", cosine_similarity)
+
+        # Calculate the mean cosine similarity
+        mean_cosine_similarity = torch.mean(cosine_similarity)
+        print("Cosine similarity Mean:", mean_cosine_similarity)
 
         #channel = descriptors_2d[0, 0, :, :]
         # Save the channel as a grayscale image
-        plt.imsave('channel_2.png', descriptors_2d)
-        plt.imsave('channel_3.png', descriptors2_2d)
+        plt.imsave('descriptor1.png', descriptors1_2d)
+        plt.imsave('descriptor2.png', descriptors2_2d)
 
-        print(f"Descriptors are of size: {descriptors.shape}")
+        print(f"Descriptors are of size: {descriptors1.shape}")
         print(f"Descriptors are of size: {descriptors2.shape}")
+
+
         # torch.save(descriptors, args.output_path)
         # print(f"Descriptors saved to: {args.output_path}")
