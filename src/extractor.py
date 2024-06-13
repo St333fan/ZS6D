@@ -363,7 +363,7 @@ class CroCoExtractor:
             self.model = CroCoExtractor.create_model(model_type)
 
 
-        self.model = CroCoExtractor.patch_vit_resolution(self.model, stride=stride)
+        #self.model = CroCoExtractor.patch_vit_resolution(self.model, stride=stride)
         self.model.eval()
         self.model.to(self.device)
         self.p = self.model.patch_embed.patch_size
