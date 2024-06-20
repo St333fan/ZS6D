@@ -135,8 +135,8 @@ def str2bool(v):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Facilitate similarity inspection between two images.')
-    parser.add_argument('--image_a', type=str, required=True, help='Path to the first image')
-    parser.add_argument('--image_b', type=str, required=True, help='Path to the second image.')
+    parser.add_argument('--image_a', default='/home/stefan/PycharmProjects/ZS6D/test/000001.png', type=str, help='Path to the first image')
+    parser.add_argument('--image_b', default='/home/stefan/PycharmProjects/ZS6D/test/000001.png', type=str, help='Path to the second image.')
     parser.add_argument('--load_size', default=224, type=int, help='load size of the input image.')
     parser.add_argument('--stride', default=4, type=int, help="""stride of first convolution layer. 
                                                                     small stride -> higher resolution.""")
@@ -153,6 +153,5 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     with torch.no_grad():
-
         show_similarity_interactive(args.image_a, args.image_b, args.load_size, args.layer, args.facet, args.bin,
                                     args.stride, args.model_type, args.num_sim_patches)

@@ -361,6 +361,14 @@ class CroCoExtractor:
             self.model = model
         else:
             self.model = CroCoExtractor.create_model(model_type)
+        seed = 33  # found by checking the saliency map
+        torch.manual_seed(seed)
+        torch.cuda.manual_seed(seed)
+        torch.cuda.manual_seed_all(seed)
+        np.random.seed(seed)
+        random.seed(seed)
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
 
 
         #self.model = CroCoExtractor.patch_vit_resolution(self.model, stride=stride)
@@ -370,8 +378,8 @@ class CroCoExtractor:
         self.stride = self.model.patch_embed.proj.stride
 
         # adding crocov2 also
-        self.mean = (0.485, 0.456, 0.406) if "croco" in self.model_type else (0.5, 0.5, 0.5)
-        self.std = (0.229, 0.224, 0.225) if "croco" in self.model_type else (0.5, 0.5, 0.5)
+        self.mean = (0.485, 0.456, 0.406) #if "croco" in self.model_type else (0.5, 0.5, 0.5)
+        self.std = (0.229, 0.224, 0.225) #if "croco" in self.model_type else (0.5, 0.5, 0.5)
 
         self._feats = []
         self.hook_handlers = []
@@ -390,7 +398,7 @@ class CroCoExtractor:
             model = torch.hub.load('facebookresearch/dino:main', model_type)
 
             # model = torch.hub.load('facebookresearch/dinov2', 'dinov2_vits14')
-        elif 'croco' in model_type:
+        elif 'crocov1' in model_type:
             ckpt = torch.load('/home/stefan/PycharmProjects/ZS6D/pretrained_models/CroCo.pth')
             if True:
                 head = PassThroughHead()
@@ -400,7 +408,11 @@ class CroCoExtractor:
 
         elif 'crocov2' in model_type:
             ckpt = torch.load('/home/stefan/PycharmProjects/ZS6D/pretrained_models/CroCo_V2_ViTLarge_BaseDecoder.pth')
-            model = CroCoNet(**ckpt.get('croco_kwargs', {}), mask_ratio=0)
+            if True:
+                head = PassThroughHead()
+                model = CroCoDownstreamMonocularEncoder(**ckpt.get('croco_kwargs', {}),head=head, mask_ratio=0)
+            else:
+                model = CroCoNet(**ckpt.get('croco_kwargs', {}), mask_ratio=0)
 
         else:  # model from timm -- load weights from timm to dino model (enables working on arbitrary size images).
             temp_model = timm.create_model(model_type, pretrained=True)
@@ -661,7 +673,7 @@ class CroCoExtractor:
         :param batch: batch to extract saliency maps for. Has shape BxCxHxW.
         :return: a tensor of saliency maps. has shape Bxt-1
         """
-        assert self.model_type == "dino_vits8" or self.model_type == "croco", f"saliency maps are supported only for dino_vits model_type."
+        assert self.model_type == "dino_vits8" or self.model_type == "crocov1", f"saliency maps are supported only for dino_vits model_type."
         self._extract_features(batch, batch2=batch2, layers=[11], facet='key') # tested also with attn
         head_idxs = [0, 2, 4, 5]
         curr_feats = self._feats[0]  # Bxhxtxt  # kann man bionocular--1 oder mono--0 stellen??
@@ -750,7 +762,7 @@ if __name__ == "__main__":
         device = 'cuda' if torch.cuda.is_available() else 'cpu'
         extractor = ViTExtractor(args.model_type, args.stride, device=device)
 
-        extractor_croco = CroCoExtractor(model_type='croco', stride=16, device=device) #stride 16
+        extractor_croco = CroCoExtractor(model_type='crocov1', stride=16, device=device) #stride 16
 
         image_batch, image_pil = extractor.preprocess(args.image_path, args.load_size)
         image_batch_croco1, image_pil_croco = extractor_croco.preprocess('/home/stefan/PycharmProjects/ZS6D/test/000248.png', args.load_size)

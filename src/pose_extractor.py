@@ -409,7 +409,7 @@ class PoseViTExtractor(extractor.ViTExtractor):
 
 class PoseCroCoExtractor(extractor.CroCoExtractor):
 
-    def __init__(self, model_type: str = 'croco', stride: int = 4, model: nn.Module = None, device: str = 'cuda'):
+    def __init__(self, model_type: str = 'crocov1', stride: int = 16, model: nn.Module = None, device: str = 'cuda'):
         self.model_type = model_type
         self.stride = stride
         self.model = model

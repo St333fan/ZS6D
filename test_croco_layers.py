@@ -1,4 +1,4 @@
-from src.extractor import CroCoExtractor, pad_and_resize
+from src.extractor import CroCoExtractor, pad_and_resize, ViTExtractor
 import torch
 import numpy as np
 import random
@@ -7,7 +7,7 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 # setting a seed so the model does not behave random
-seed = 33  # found by checking the saliency map
+seed = 33  # found by checking the saliency map 33
 torch.manual_seed(seed)
 torch.cuda.manual_seed(seed)
 torch.cuda.manual_seed_all(seed)
@@ -18,12 +18,12 @@ torch.backends.cudnn.benchmark = False
 
 with torch.no_grad():
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    extractor_croco = CroCoExtractor(model_type='croco', stride=16, device=device)  # stride 16
-
+    extractor_croco = CroCoExtractor(model_type='crocov1', stride=16, device=device)  # stride 16
+    #extractor_croco = ViTExtractor(device=device)
     image_batch_croco1, image_pil_croco = extractor_croco.preprocess(
         '/home/stefan/PycharmProjects/ZS6D/test/000392.png', 224) #000248.png
     image_batch_croco2, image_pil_croco2 = extractor_croco.preprocess(
-        '/home/stefan/PycharmProjects/ZS6D/test/maskcut.png', 224)#000392.png
+        '/home/stefan/PycharmProjects/ZS6D/test/maskcutbetter.png', 224)#000392.png
 
     image_batch_croco1 = pad_and_resize(image_batch_croco1)
     image_batch_croco2 = pad_and_resize(image_batch_croco2)
@@ -68,5 +68,5 @@ with torch.no_grad():
 
     # Save the plot as a PNG image
     plt.legend()
-    plt.savefig('line_plot1.png')
+    plt.savefig('line_plot3.png')
 

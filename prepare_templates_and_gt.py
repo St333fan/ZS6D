@@ -13,9 +13,20 @@ from PIL import Image
 from pose_utils import vis_utils
 from pose_utils import img_utils
 from rendering.utils import get_rendering, get_sympose
+import random
 
 
 if __name__=="__main__":
+    # setting a seed so the model does not behave random
+    seed = 33  # found by checking the saliency map
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    np.random.seed(seed)
+    random.seed(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+
     parser = argparse.ArgumentParser(description='Test pose estimation inference on test set')
     parser.add_argument('--config_file', default="./zs6d_configs/template_gt_preparation_configs/cfg_template_gt_generation_ycbv.json")
 
@@ -62,7 +73,7 @@ if __name__=="__main__":
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
     #extractor = PoseViTExtractor(model_type='dino_vits8', stride=4, device=device)
-    extractor = PoseCroCoExtractor(model_type='croco', stride=16, device=device)# there was 4
+    extractor = PoseCroCoExtractor(model_type='crocov1', stride=16, device=device)# there was 4
 
     cam_K = np.array(config['cam_K']).reshape((3,3))
 

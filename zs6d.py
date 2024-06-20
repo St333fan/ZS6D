@@ -1,3 +1,7 @@
+import matplotlib
+# Set the backend for matplotlib
+matplotlib.use('TkAgg')  # Use TkAgg backend
+import matplotlib.pyplot as plt
 import os
 import json
 import torch
@@ -33,7 +37,7 @@ class ZS6D:
             raise
 
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
-        if self.model_type == 'croco':
+        if self.model_type == 'crocov1':
             self.extractor = PoseCroCoExtractor(model_type=self.model_type, stride=self.stride, device=self.device)
         else:
             self.extractor = PoseViTExtractor(model_type=self.model_type, stride=self.stride, device=self.device)
@@ -62,19 +66,21 @@ class ZS6D:
 
         img_crop, y_offset, x_offset = img_utils.make_quadratic_crop(np.array(img), bbox)
         mask_crop, _, _ = img_utils.make_quadratic_crop(mask, bbox)
+        plt.imshow(mask_crop)
+        plt.show()  # non-blocking show
         img_crop = cv2.bitwise_and(img_crop, img_crop, mask=mask_crop)
         img_crop = Image.fromarray(img_crop)
         img_prep, _, _ = self.extractor.preprocess(img_crop, load_size=224)
 
-        import matplotlib.pyplot as plt
+
         channel = img_prep[0, 0, :, :]
         # Save the channel as a grayscale image
         plt.imsave('channel_0.png', channel, cmap='gray')
 
-        if self.model_type != 'croco':
+        if self.model_type != 'crocov1':
             with torch.no_grad():
                 desc = self.extractor.extract_descriptors(img_prep.to(self.device), layer=11, facet='key',
-                                                          bin=False, include_cls=False)
+                                                          bin=False, include_cls=True)
                 desc = desc.squeeze(0).squeeze(0).detach().cpu()
         else:
             #img_prep = torch.nn.functional.interpolate(img_prep, size=(224, 224), mode='bilinear',
@@ -93,6 +99,7 @@ class ZS6D:
             raise ValueError("No matched templates found for the object.")
 
         template = Image.open(self.templates_gt[obj_id][matched_templates[0][1]]['img_crop'])
+        template.save('/home/stefan/PycharmProjects/ZS6D/img.jpg')
 
         with torch.no_grad():
             if img_crop.size[0] < self.max_crop_size:

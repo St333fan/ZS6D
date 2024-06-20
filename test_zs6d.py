@@ -12,10 +12,21 @@ import matplotlib.pyplot as plt
 import torch
 from croco.models.croco import CroCoNet
 import sys
+import random
 sys.path.append("croco")
 
 #ckpt = torch.load('/home/imw-mmi/PycharmProjects/ZS6D/pretrained_models/CroCo.pth')
 #model = CroCoNet(**ckpt.get('croco_kwargs', {}))
+# setting a seed so the model does not behave random
+seed = 33  # found by checking the saliency map
+torch.manual_seed(seed)
+torch.cuda.manual_seed(seed)
+torch.cuda.manual_seed_all(seed)
+np.random.seed(seed)
+random.seed(seed)
+torch.backends.cudnn.deterministic = True
+torch.backends.cudnn.benchmark = False
+
 
 # Loading the config file:
 with open(os.path.join("./zs6d_configs/bop_eval_configs/cfg_ycbv_inference_bop.json"), "r") as f:
@@ -23,7 +34,7 @@ with open(os.path.join("./zs6d_configs/bop_eval_configs/cfg_ycbv_inference_bop.j
 
 # Instantiating the pose estimator:
 # This involves handing over the path to the templates_gt file and the corresponding object norm_factors.
-pose_estimator = ZS6D(config['templates_gt_path'], config['norm_factor_path'], model_type='croco', subset_templates=5, max_crop_size=80, stride=16) #max_crop_size=80, stride=4)
+pose_estimator = ZS6D(config['templates_gt_path'], config['norm_factor_path'], model_type='crocov1', subset_templates=5, max_crop_size=80, stride=16) #max_crop_size=80, stride=4)
 
 # Loading a ground truth file to access segmentation masks to test zs6d:
 with open(os.path.join(config['gt_path']), 'r') as f:
@@ -45,6 +56,7 @@ for i in range(len(data_gt[img_id])):
     mask = data_gt[img_id][obj_number]['mask_sam']
     mask = img_utils.rle_to_mask(mask)
     mask = mask.astype(np.uint8)
+    cv2.imwrite('mask.png', mask)
 
     start_time = time.time()
 
