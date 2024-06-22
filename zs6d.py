@@ -66,30 +66,25 @@ class ZS6D:
 
         img_crop, y_offset, x_offset = img_utils.make_quadratic_crop(np.array(img), bbox)
         mask_crop, _, _ = img_utils.make_quadratic_crop(mask, bbox)
-        plt.imshow(mask_crop)
-        plt.show()  # non-blocking show
         img_crop = cv2.bitwise_and(img_crop, img_crop, mask=mask_crop)
+        import random
+        #filename = f"img_crop_{random.randint(0, 1000)}.png"
+        #img_crop = cv2.cvtColor(img_crop, cv2.COLOR_BGR2RGB)  # Convert to RGB
+        #cv2.imwrite(filename, img_crop)
         img_crop = Image.fromarray(img_crop)
         img_prep, _, _ = self.extractor.preprocess(img_crop, load_size=224)
 
 
-        channel = img_prep[0, 0, :, :]
-        # Save the channel as a grayscale image
-        plt.imsave('channel_0.png', channel, cmap='gray')
-
         if self.model_type != 'crocov1':
             with torch.no_grad():
-                desc = self.extractor.extract_descriptors(img_prep.to(self.device), layer=11, facet='key',
+                desc = self.extractor.extract_descriptors(img_prep.to(self.device), layer=11, facet='attn',
                                                           bin=False, include_cls=True)
                 desc = desc.squeeze(0).squeeze(0).detach().cpu()
         else:
             #img_prep = torch.nn.functional.interpolate(img_prep, size=(224, 224), mode='bilinear',
             #                                                    align_corners=False)
-            channel = img_prep[0, 0, :, :]
-            # Save the channel as a grayscale image
-            plt.imsave('channel_1.png', channel, cmap='gray')
             with torch.no_grad():
-                desc = self.extractor.extract_descriptors(img_prep.to(self.device), layer=11, facet='key',
+                desc = self.extractor.extract_descriptors(img_prep.to(self.device), layer=11, facet='attn',
                                                           bin=False, include_cls=True)
                 desc = desc.squeeze(0).squeeze(0).detach().cpu()
 
@@ -99,7 +94,11 @@ class ZS6D:
             raise ValueError("No matched templates found for the object.")
 
         template = Image.open(self.templates_gt[obj_id][matched_templates[0][1]]['img_crop'])
-        template.save('/home/stefan/PycharmProjects/ZS6D/img.jpg')
+        template.save(f'/home/stefan/PycharmProjects/ZS6D/template_{random.randint(0, 1000)}.jpg')
+        #filename = f"template_{random.randint(0, 1000)}.png"
+        #cv2.imwrite(filename, template)
+        plt.imshow(template)
+        plt.show()  # non-blocking show
 
         with torch.no_grad():
             if img_crop.size[0] < self.max_crop_size:

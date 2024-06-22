@@ -18,7 +18,7 @@ import random
 
 if __name__=="__main__":
     # setting a seed so the model does not behave random
-    seed = 33  # found by checking the saliency map
+    seed = 1  # found by checking the saliency map 33
     torch.manual_seed(seed)
     torch.cuda.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
@@ -127,7 +127,7 @@ if __name__=="__main__":
                     img_crop, crop_x, crop_y = img_utils.make_quadratic_crop(img, [x, y, w, h])
                     img_prep, img_crop, _ = extractor.preprocess(Image.fromarray(img_crop), load_size=224)
 
-                    desc = extractor.extract_descriptors(img_prep.to(device), layer=11, facet='key', bin=False, include_cls=True)
+                    desc = extractor.extract_descriptors(img_prep.to(device), layer=11, facet='attn', bin=False, include_cls=True)
                     desc = desc.squeeze(0).squeeze(0).detach().cpu().numpy()
 
                     R = obj_poses[i][:3,:3]

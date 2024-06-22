@@ -18,7 +18,7 @@ sys.path.append("croco")
 #ckpt = torch.load('/home/imw-mmi/PycharmProjects/ZS6D/pretrained_models/CroCo.pth')
 #model = CroCoNet(**ckpt.get('croco_kwargs', {}))
 # setting a seed so the model does not behave random
-seed = 33  # found by checking the saliency map
+seed = 1  # found by checking the saliency map
 torch.manual_seed(seed)
 torch.cuda.manual_seed(seed)
 torch.cuda.manual_seed_all(seed)
@@ -56,7 +56,6 @@ for i in range(len(data_gt[img_id])):
     mask = data_gt[img_id][obj_number]['mask_sam']
     mask = img_utils.rle_to_mask(mask)
     mask = mask.astype(np.uint8)
-    cv2.imwrite('mask.png', mask)
 
     start_time = time.time()
 
