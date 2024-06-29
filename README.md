@@ -1,4 +1,13 @@
-# ZS6D
+# ZS6D with added CroCo support and new pipeline of Template Matching
+
+<img src="./assets/Robot_Vision_CroCo_Dino.png" width="500" alt="teaser"/>
+
+Dino vs CroCo (Cross View Completion, self-supervised pre-trained ViT) 
+
+<img src="./assets/croco_pipeline.png" width="500" alt="teaser"/>
+
+After coming to the conclusion that the Dino is superior to CroCo in descriptor matching, a new pipeline is proposed for
+tmplate matching.
 
 <img src="./assets/overview.png" width="500" alt="teaser"/>
 
