@@ -7,16 +7,28 @@ import pose_utils.vis_utils as vis_utils
 import numpy as np
 import time
 import matplotlib.pyplot as plt
+import torch
 import sys
+import random
 sys.path.append("croco")
 
+# setting a seed so the model does not behave random
+seed = 1  # found by checking the saliency map
+torch.manual_seed(seed)
+torch.cuda.manual_seed(seed)
+torch.cuda.manual_seed_all(seed)
+np.random.seed(seed)
+random.seed(seed)
+torch.backends.cudnn.deterministic = True
+torch.backends.cudnn.benchmark = False
+
 # Loading the config file:
-with open(os.path.join("./zs6d_configs/bop_eval_configs/cfg_ycbv_inference_bop.json"), "r") as f:
+with open(os.path.join("./zs6d_configs/bop_eval_configs/cfg_ycbv_inference_bop_croco.json"), "r") as f:
     config = json.load(f)
 
 # Instantiating the pose estimator:
 # This involves handing over the path to the templates_gt file and the corresponding object norm_factors.
-pose_estimator = ZS6D(config['templates_gt_path'], config['norm_factor_path'], model_type='dino_vits8', subset_templates=5, max_crop_size=80, stride=4)
+pose_estimator = ZS6D(config['templates_gt_path'], config['norm_factor_path'], model_type='crocov1', subset_templates=5, max_crop_size=80, stride=16)
 
 # Loading a ground truth file to access segmentation masks to test zs6d:
 with open(os.path.join(config['gt_path']), 'r') as f:
@@ -43,7 +55,9 @@ for i in range(len(data_gt[img_id])):
 
     # To estimate the objects Rotation R and translation t the input image, the object_id, a segmentation mask and camera matrix are necessary
     R_est, t_est = pose_estimator.get_pose(img, str(obj_id), mask, cam_K, bbox=None)
-
+    if R_est == None:
+        print("Failed to find R_est... ")
+        continue
     end_time = time.time()
 
     out_img = vis_utils.draw_3D_bbox_on_image(np.array(img), R_est, t_est, cam_K,

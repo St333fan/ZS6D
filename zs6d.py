@@ -1,3 +1,7 @@
+import matplotlib
+# Set the backend for matplotlib
+matplotlib.use('TkAgg')  # Use TkAgg backend
+import matplotlib.pyplot as plt
 import os
 import json
 import torch
@@ -33,7 +37,8 @@ class ZS6D:
             raise
 
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
-        if self.model_type == 'croco':
+
+        if self.model_type == 'crocov1' or self.model_type == 'crocov2':
             self.extractor = PoseCroCoExtractor(model_type=self.model_type, stride=self.stride, device=self.device)
         else:
             self.extractor = PoseViTExtractor(model_type=self.model_type, stride=self.stride, device=self.device)
@@ -57,62 +62,76 @@ class ZS6D:
         self.logger.info("Preparing templates and loading of extractor is done!")
 
     def get_pose(self, img, obj_id, mask, cam_K, bbox=None):
-        try:
-            if bbox is None:
-                bbox = img_utils.get_bounding_box_from_mask(mask)
+        if bbox is None:
+            bbox = img_utils.get_bounding_box_from_mask(mask)
 
-            img_crop, y_offset, x_offset = img_utils.make_quadratic_crop(np.array(img), bbox)
-            mask_crop, _, _ = img_utils.make_quadratic_crop(mask, bbox)
-            img_crop = cv2.bitwise_and(img_crop, img_crop, mask=mask_crop)
-            img_crop = Image.fromarray(img_crop)
-            img_prep, _, _ = self.extractor.preprocess(img_crop, load_size=224)
+        img_crop, y_offset, x_offset = img_utils.make_quadratic_crop(np.array(img), bbox)
+        mask_crop, _, _ = img_utils.make_quadratic_crop(mask, bbox)
+        img_crop = cv2.bitwise_and(img_crop, img_crop, mask=mask_crop)
 
-            if self.model_type != 'croco':
-                with torch.no_grad():
-                    desc = self.extractor.extract_descriptors(img_prep.to(self.device), layer=11, facet='key',
-                                                              bin=False, include_cls=True)
-                    desc = desc.squeeze(0).squeeze(0).detach().cpu()
-            else:
-                img_prep = torch.nn.functional.interpolate(img_prep, size=(224, 224), mode='bilinear',
-                                                                    align_corners=False)
-                with torch.no_grad():
-                    desc = self.extractor.extract_descriptors(img_prep.to(self.device), layer=11, facet='key',
-                                                              bin=False, include_cls=True)
-                    desc = desc.squeeze(0).squeeze(0).detach().cpu()
+        import random
+        #filename = f"img_crop_{random.randint(0, 1000)}.png"
+        #img_crop = cv2.cvtColor(img_crop, cv2.COLOR_BGR2RGB)  # Convert to RGB
+        #cv2.imwrite(filename, img_crop)
 
-            matched_templates = utils.find_template_cpu(desc, self.templates_desc[obj_id], num_results=1)
+        img_crop = Image.fromarray(img_crop)
+        img_prep, _, _ = self.extractor.preprocess(img_crop, load_size=224)
 
-            if not matched_templates:
-                raise ValueError("No matched templates found for the object.")
-
-            template = Image.open(self.templates_gt[obj_id][matched_templates[0][1]]['img_crop'])
-
+        if self.model_type == 'dino_vits8':
             with torch.no_grad():
-                if img_crop.size[0] < self.max_crop_size:
-                    crop_size = img_crop.size[0]
-                else:
-                    crop_size = self.max_crop_size
+                desc = self.extractor.extract_descriptors(img_prep.to(self.device), layer=11, facet='key',
+                                                          bin=False, include_cls=True)
+                desc = desc.squeeze(0).squeeze(0).detach().cpu()
+        elif self.model_type != 'crocov1':
+            with torch.no_grad():
+                desc = self.extractor.extract_descriptors(img_prep.to(self.device), layer=11, facet='attn',
+                                                          bin=False, include_cls=True)
+                desc = desc.squeeze(0).squeeze(0).detach().cpu()
+        else:
+            #img_prep = torch.nn.functional.interpolate(img_prep, size=(224, 224), mode='bilinear',
+            #                                                    align_corners=False)
+            with torch.no_grad():
+                desc = self.extractor.extract_descriptors(img_prep.to(self.device), layer=5, facet='key',
+                                                          bin=False, include_cls=True)
+                desc = desc.squeeze(0).squeeze(0).detach().cpu()
 
-                resize_factor = float(crop_size) / img_crop.size[0]
+        matched_templates = utils.find_template_cpu(desc, self.templates_desc[obj_id], num_results=1)
 
-                points1, points2, crop_pil, template_pil = self.extractor.find_correspondences_fastkmeans(img_crop, template, num_pairs=20, load_size=crop_size)
+        if not matched_templates:
+            raise ValueError("No matched templates found for the object.")
 
-                if not points1 or not points2:
-                    raise ValueError("Insufficient correspondences found.")
+        template = Image.open(self.templates_gt[obj_id][matched_templates[0][1]]['img_crop'])
 
-                img_uv = np.load(f"{self.templates_gt[obj_id][matched_templates[0][1]]['img_crop'].split('.png')[0]}_uv.npy")
-                img_uv = img_uv.astype(np.uint8)
-                img_uv = cv2.resize(img_uv, (crop_size, crop_size))
-                
-                R_est, t_est = utils.get_pose_from_correspondences(points1, points2, 
-                                                                   y_offset, x_offset, 
-                                                                   img_uv, cam_K, 
-                                                                   self.norm_factors[str(obj_id)], 
-                                                                   scale_factor=1.0, 
-                                                                   resize_factor=resize_factor)
-                
-                return R_est, t_est
-        except Exception as e:
-            self.logger.error(f"Error in get_pose: {e}")
-            raise
+        template.save(f'/home/stefan/PycharmProjects/ZS6D/template_{random.randint(0, 1000)}.jpg')
+        #filename = f"template_{random.randint(0, 1000)}.png"
+        #cv2.imwrite(filename, template)
+        plt.imshow(template)
+        plt.show()  # non-blocking show
+
+        with torch.no_grad():
+            if img_crop.size[0] < self.max_crop_size:
+                crop_size = img_crop.size[0]
+            else:
+                crop_size = self.max_crop_size
+
+            resize_factor = float(crop_size) / img_crop.size[0]
+
+            points1, points2, crop_pil, template_pil = self.extractor.find_correspondences_fastkmeans(img_crop, template, num_pairs=20, load_size=crop_size)
+
+            if not points1 or not points2:
+                raise ValueError("Insufficient correspondences found.")
+
+            img_uv = np.load(f"{self.templates_gt[obj_id][matched_templates[0][1]]['img_crop'].split('.png')[0]}_uv.npy")
+            img_uv = img_uv.astype(np.uint8)
+            img_uv = cv2.resize(img_uv, (crop_size, crop_size))
+
+            R_est, t_est = utils.get_pose_from_correspondences(points1, points2,
+                                                               y_offset, x_offset,
+                                                               img_uv, cam_K,
+                                                               self.norm_factors[str(obj_id)],
+                                                               scale_factor=1.0,
+                                                               resize_factor=resize_factor)
+
+            return R_est, t_est
+
 

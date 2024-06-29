@@ -168,10 +168,13 @@ def get_pose_from_correspondences(points1, points2, y_offset, x_offset, img_uv, 
     # filter valid points
     valid_points1 = []
     valid_points2 = []
-    for point1, point2 in zip(points1, points2):
-        if np.any(img_uv[point2[0], point2[1]] != [0,0,0]):
-            valid_points1.append(point1)
-            valid_points2.append(point2)
+    try:
+        for point1, point2 in zip(points1, points2):
+            if np.any(img_uv[point2[0], point2[1]] != [0,0,0]):
+                valid_points1.append(point1)
+                valid_points2.append(point2)
+    except:
+        print("Failed to get get_pose_from_correspondences... ")
     
     # Check if enough correspondences for PnPRansac
     if len(valid_points1) < 4:

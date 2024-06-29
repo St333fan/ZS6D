@@ -409,7 +409,7 @@ class PoseViTExtractor(extractor.ViTExtractor):
 
 class PoseCroCoExtractor(extractor.CroCoExtractor):
 
-    def __init__(self, model_type: str = 'croco', stride: int = 4, model: nn.Module = None, device: str = 'cuda'):
+    def __init__(self, model_type: str = 'crocov1', stride: int = 16, model: nn.Module = None, device: str = 'cuda'):
         self.model_type = model_type
         self.stride = stride
         self.model = model
@@ -476,23 +476,30 @@ class PoseCroCoExtractor(extractor.CroCoExtractor):
         return descs
 
     def find_correspondences_fastkmeans(self, pil_img1, pil_img2, num_pairs: int = 10, load_size: int = 224,
-                                        layer: int = 9, facet: str = 'key', bin: bool = True,
+                                        layer: int = 11, facet: str = 'key', bin: bool = False,
                                         thresh: float = 0.05) -> Tuple[
         List[Tuple[float, float]], List[Tuple[float, float]], Image.Image, Image.Image]:
 
         start_time_corr = time.time()
 
         start_time_desc = time.time()
+        # image crop
         image1_batch, image1_pil, scale_factor = self.preprocess(pil_img1, load_size)
-        descriptors1 = self.extract_descriptors(image1_batch.to(self.device), layer, facet, bin)
+        image1_batch = torch.nn.functional.interpolate(image1_batch, size=(224, 224), mode='bilinear',
+                                                       align_corners=False)
+        descriptors1 = self.extract_descriptors(image1_batch.to(self.device), layer, facet, bin, include_cls=True)
         num_patches1, load_size1 = self.num_patches, self.load_size
+        # templates
         image2_batch, image2_pil, scale_factor = self.preprocess(pil_img2, load_size)
-        descriptors2 = self.extract_descriptors(image2_batch.to(self.device), layer, facet, bin)
+        image2_batch = torch.nn.functional.interpolate(image2_batch, size=(224, 224), mode='bilinear',
+                                                       align_corners=False)
+        descriptors2 = self.extract_descriptors(image2_batch.to(self.device), layer, facet, bin, include_cls=True)
         num_patches2, load_size2 = self.num_patches, self.load_size
         end_time_desc = time.time()
         elapsed_desc = end_time_desc - start_time_desc
 
         start_time_saliency = time.time()
+
         # extracting saliency maps for each image
         saliency_map1 = self.extract_saliency_maps(image1_batch.to(self.device))[0]
         saliency_map2 = self.extract_saliency_maps(image2_batch.to(self.device))[0]
@@ -512,6 +519,7 @@ class PoseCroCoExtractor(extractor.CroCoExtractor):
         elapsed_time_chunk_cosine = end_time_chunk_cosine - start_time_chunk_cosine
 
         start_time_bb = time.time()
+
         # calculate best buddies
         image_idxs = torch.arange(num_patches1[0] * num_patches1[1], device=self.device)
         sim_1, nn_1 = torch.max(similarities, dim=-1)  # nn_1 - indices of block2 closest to block1
@@ -583,10 +591,10 @@ class PoseCroCoExtractor(extractor.CroCoExtractor):
         img2_x_to_show = (img2_indices_to_show % num_patches2[1]).cpu().numpy()
         points1, points2 = [], []
         for y1, x1, y2, x2 in zip(img1_y_to_show, img1_x_to_show, img2_y_to_show, img2_x_to_show):
-            x1_show = (int(x1) - 1) * self.stride[1] + self.stride[1] + self.p // 2
-            y1_show = (int(y1) - 1) * self.stride[0] + self.stride[0] + self.p // 2
-            x2_show = (int(x2) - 1) * self.stride[1] + self.stride[1] + self.p // 2
-            y2_show = (int(y2) - 1) * self.stride[0] + self.stride[0] + self.p // 2
+            x1_show = (int(x1) - 1) * self.stride[1] + self.stride[1] + self.p[0] // 2
+            y1_show = (int(y1) - 1) * self.stride[0] + self.stride[0] + self.p[0] // 2
+            x2_show = (int(x2) - 1) * self.stride[1] + self.stride[1] + self.p[0] // 2
+            y2_show = (int(y2) - 1) * self.stride[0] + self.stride[0] + self.p[0] // 2
             points1.append((y1_show, x1_show))
             points2.append((y2_show, x2_show))
 
@@ -601,7 +609,7 @@ class PoseCroCoExtractor(extractor.CroCoExtractor):
         return points1, points2, image1_pil, image2_pil
 
     def find_correspondences(self, pil_img1, pil_img2, num_pairs: int = 10, load_size: int = 224,
-                             layer: int = 9, facet: str = 'key', bin: bool = True,
+                             layer: int = 11, facet: str = 'key', bin: bool = False,
                              thresh: float = 0.05) -> Tuple[
         List[Tuple[float, float]], List[Tuple[float, float]], Image.Image, Image.Image]:
 
@@ -609,9 +617,13 @@ class PoseCroCoExtractor(extractor.CroCoExtractor):
 
         start_time_desc = time.time()
         image1_batch, image1_pil, scale_factor = self.preprocess(pil_img1, load_size)
+        image1_batch = torch.nn.functional.interpolate(image1_batch, size=(224, 224), mode='bilinear',
+                                                       align_corners=False)
         descriptors1 = self.extract_descriptors(image1_batch.to(self.device), layer, facet, bin)
         num_patches1, load_size1 = self.num_patches, self.load_size
         image2_batch, image2_pil, scale_factor = self.preprocess(pil_img2, load_size)
+        image2_batch = torch.nn.functional.interpolate(image2_batch, size=(224, 224), mode='bilinear',
+                                                       align_corners=False)
         descriptors2 = self.extract_descriptors(image2_batch.to(self.device), layer, facet, bin)
         num_patches2, load_size2 = self.num_patches, self.load_size
         end_time_desc = time.time()
@@ -713,12 +725,12 @@ class PoseCroCoExtractor(extractor.CroCoExtractor):
         return points1, points2, image1_pil, image2_pil
 
     def find_correspondences_old(self, pil_img1, pil_img2, num_pairs: int = 10, load_size: int = 224,
-                                 layer: int = 9, facet: str = 'key', bin: bool = True,
+                                 layer: int = 9, facet: str = 'key', bin: bool = False,
                                  thresh: float = 0.05) -> Tuple[
         List[Tuple[float, float]], List[Tuple[float, float]], Image.Image, Image.Image]:
 
         image1_batch, image1_pil, scale_factor = self.preprocess(pil_img1, load_size)
-        descriptors1 = self.extract_descriptors(image1_batch.to(self.device), layer, facet, bin)
+        descriptors1 = self.extract_descriptors(image1_batch.to(self.device), layer, facet, bin, include_cls=False)
         num_patches1, load_size1 = self.num_patches, self.load_size
         image2_batch, image2_pil, scale_factor = self.preprocess(pil_img2, load_size)
         descriptors2 = self.extract_descriptors(image2_batch.to(self.device), layer, facet, bin)

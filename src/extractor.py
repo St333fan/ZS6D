@@ -13,6 +13,12 @@ from pathlib import Path
 from typing import Union, List, Tuple
 from PIL import Image
 from croco.models.croco import CroCoNet
+from croco.models.croco_downstream import CroCoDownstreamMonocularEncoder
+from torchvision.transforms import ToTensor, Normalize, Compose
+import numpy as np
+import matplotlib.pyplot as plt
+import torch
+import random
 
 
 class ViTExtractor:
@@ -67,12 +73,8 @@ class ViTExtractor:
         """
         if 'dino' in model_type:
             model = torch.hub.load('facebookresearch/dino:main', model_type)
-            
-            # model = torch.hub.load('facebookresearch/dinov2', 'dinov2_vits14')
-        elif 'croco' in model_type:
-            ckpt = torch.load('/home/imw-mmi/PycharmProjects/ZS6D/pretrained_models/CroCo.pth')
-            model = CroCoNet(**ckpt.get('croco_kwargs', {}))
 
+            # model = torch.hub.load('facebookresearch/dinov2', 'dinov2_vits14')
         else:  # model from timm -- load weights from timm to dino model (enables working on arbitrary size images).
             temp_model = timm.create_model(model_type, pretrained=True)
             model_type_dict = {
@@ -278,8 +280,8 @@ class ViTExtractor:
                                 temp_i = max(0, min(i, self.num_patches[0] - 1))
                                 temp_j = max(0, min(j, self.num_patches[1] - 1))
                                 bin_x[:, part_idx * sub_desc_dim: (part_idx + 1) * sub_desc_dim, y, x] = avg_pools[k][
-                                                                                                           :, :, temp_i,
-                                                                                                           temp_j]
+                                                                                                         :, :, temp_i,
+                                                                                                         temp_j]
                             part_idx += 1
         bin_x = bin_x.flatten(start_dim=-2, end_dim=-1).permute(0, 2, 1).unsqueeze(dim=1)
         # Bx1x(t-1)x(dxh)
@@ -340,7 +342,7 @@ class CroCoExtractor:
     d - the embedding dimension in the ViT.
     """
 
-    def __init__(self, model_type: str = 'dino_vits8', stride: int = 4, model: nn.Module = None, device: str = 'cuda'):
+    def __init__(self, model_type: str = 'dino_vits8', stride: int = 16, model: nn.Module = None, device: str = 'cuda'):
         """
         :param model_type: A string specifying the type of model to extract from.
                           [dino_vits8 | dino_vits16 | dino_vitb8 | dino_vitb16 | vit_small_patch8_224 |
@@ -355,15 +357,28 @@ class CroCoExtractor:
             self.model = model
         else:
             self.model = CroCoExtractor.create_model(model_type)
-
-        #self.model = CroCoExtractor.patch_vit_resolution(self.model, stride=stride)
+        '''
+        seed = 33  # found by checking the saliency map
+        torch.manual_seed(seed)
+        torch.cuda.manual_seed(seed)
+        torch.cuda.manual_seed_all(seed)
+        np.random.seed(seed)
+        random.seed(seed)
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
+        '''
+        if model_type == 'crocov2':
+            self.model = CroCoExtractor.patch_vit_resolution(self.model, stride=stride)
+        elif stride != 16:
+            print('patch_vit_resolution only for crocov2')
         self.model.eval()
         self.model.to(self.device)
         self.p = self.model.patch_embed.patch_size
         self.stride = self.model.patch_embed.proj.stride
 
-        self.mean = (0.485, 0.456, 0.406) if "dino" in self.model_type else (0.5, 0.5, 0.5)
-        self.std = (0.229, 0.224, 0.225) if "dino" in self.model_type else (0.5, 0.5, 0.5)
+        # adding crocov2 also
+        self.mean = (0.485, 0.456, 0.406) #if "croco" in self.model_type else (0.5, 0.5, 0.5)
+        self.std = (0.229, 0.224, 0.225) #if "croco" in self.model_type else (0.5, 0.5, 0.5)
 
         self._feats = []
         self.hook_handlers = []
@@ -382,9 +397,21 @@ class CroCoExtractor:
             model = torch.hub.load('facebookresearch/dino:main', model_type)
 
             # model = torch.hub.load('facebookresearch/dinov2', 'dinov2_vits14')
-        elif 'croco' in model_type:
-            ckpt = torch.load('/home/imw/PycharmProjects/ZS6D/pretrained_models/CroCo.pth')
-            model = CroCoNet(**ckpt.get('croco_kwargs', {}))
+        elif 'crocov1' in model_type:
+            ckpt = torch.load('/home/stefan/PycharmProjects/ZS6D/pretrained_models/CroCo.pth')
+            if True:
+                head = PassThroughHead()
+                model = CroCoDownstreamMonocularEncoder(**ckpt.get('croco_kwargs', {}),head=head, mask_ratio=0)
+            else:
+                model = CroCoNet(**ckpt.get('croco_kwargs', {}), mask_ratio=0)
+
+        elif 'crocov2' in model_type:
+            ckpt = torch.load('/home/stefan/PycharmProjects/ZS6D/pretrained_models/CroCo_V2_ViTLarge_BaseDecoder.pth')
+            if True:
+                head = PassThroughHead()
+                model = CroCoDownstreamMonocularEncoder(**ckpt.get('croco_kwargs', {}),head=head, mask_ratio=0)
+            else:
+                model = CroCoNet(**ckpt.get('croco_kwargs', {}), mask_ratio=0)
 
         else:  # model from timm -- load weights from timm to dino model (enables working on arbitrary size images).
             temp_model = timm.create_model(model_type, pretrained=True)
@@ -446,7 +473,7 @@ class CroCoExtractor:
         :param stride: the new stride parameter.
         :return: the adjusted model
         """
-        patch_size = model.patch_embed.patch_size
+        patch_size = model.patch_embed.patch_size[0] # changed beacuse batch tuble
         if stride == patch_size:  # nothing to do
             return model
 
@@ -472,20 +499,34 @@ class CroCoExtractor:
                     (2) the pil image in relevant dimensions
         """
         pil_image = Image.open(image_path).convert('RGB')
+
         if load_size is not None:
             pil_image = transforms.Resize(load_size, interpolation=transforms.InterpolationMode.LANCZOS)(pil_image)
-        prep = transforms.Compose([
-            transforms.ToTensor(),
-            transforms.Normalize(mean=self.mean, std=self.std)
-        ])
-        prep_img = prep(pil_image)[None, ...]
+
+        #prep = transforms.Compose([
+         #   transforms.ToTensor(),
+         #   transforms.Normalize(mean=self.mean, std=self.std)
+        #])
+        #prep_img = prep(pil_image)[None, ...]
+        # Convert the image to a tensor
+
+        to_tensor = transforms.ToTensor()
+        image_tensor = to_tensor(pil_image)[None, ...]  # Add batch dimension
+
+        # Pad and resize the image tensor
+        padded_and_resized_tensor = pad_and_resize(image_tensor)
+
+        # Normalize the image tensor
+        normalize = transforms.Normalize(mean=self.mean, std=self.std)
+        prep_img = padded_and_resized_tensor#normalize(padded_and_resized_tensor)
+
         return prep_img, pil_image
 
     def _get_hook(self, facet: str):
         """
         generate a hook method for a specific block and facet.
         """
-        if facet in ['attn', 'token']:
+        if facet in ['attn', 'token', 'cross_attn']:
             def _hook(model, input, output):
                 self._feats.append(output)
 
@@ -504,6 +545,7 @@ class CroCoExtractor:
             input = input[0]
             B, N, C = input.shape
             qkv = module.qkv(input).reshape(B, N, 3, module.num_heads, C // module.num_heads).permute(2, 0, 3, 1, 4)
+            #qkv = module.proj(input).reshape(B, N, 3, module.num_heads, C // module.num_heads).permute(2, 0, 3, 1, 4)
             self._feats.append(qkv[facet_idx])  # Bxhxtxd
 
         return _inner_hook
@@ -514,12 +556,14 @@ class CroCoExtractor:
         :param layers: layers from which to extract features.
         :param facet: facet to extract. One of the following options: ['key' | 'query' | 'value' | 'token' | 'attn']
         """
-        for block_idx, block in enumerate(self.model.dec_blocks):
+        for block_idx, block in enumerate(self.model.enc_blocks): # enc_block or dec_block
             if block_idx in layers:
                 if facet == 'token':
                     self.hook_handlers.append(block.register_forward_hook(self._get_hook(facet)))
                 elif facet == 'attn':
                     self.hook_handlers.append(block.attn.attn_drop.register_forward_hook(self._get_hook(facet)))
+                elif facet == 'cross_attn':
+                    self.hook_handlers.append(block.cross_attn.attn_drop.register_forward_hook(self._get_hook(facet)))
                 elif facet in ['key', 'query', 'value']:
                     self.hook_handlers.append(block.attn.register_forward_hook(self._get_hook(facet)))
                 else:
@@ -533,7 +577,7 @@ class CroCoExtractor:
             handle.remove()
         self.hook_handlers = []
 
-    def _extract_features(self, batch: torch.Tensor, layers: List[int] = 11, facet: str = 'key') -> List[torch.Tensor]:
+    def _extract_features(self, batch: torch.Tensor, batch2: torch.Tensor, layers: List[int] = 11, facet: str = 'key') -> List[torch.Tensor]:
         """
         extract features from the model
         :param batch: batch to extract features for. Has shape BxCxHxW.
@@ -547,7 +591,11 @@ class CroCoExtractor:
         B, C, H, W = batch.shape
         self._feats = []
         self._register_hooks(layers, facet)
-        _ = self.model(batch, batch)
+        with torch.inference_mode():
+            if batch2 == None:
+                _ = self.model(batch)#, batch)
+            else:
+                _ = self.model(batch, batch2)
         self._unregister_hooks()
         self.load_size = (H, W)
         self.num_patches = (1 + (H - self.p[0]) // self.stride[0], 1 + (W - self.p[0]) // self.stride[1])
@@ -567,6 +615,7 @@ class CroCoExtractor:
         bin_x = bin_x.permute(0, 2, 1)
         bin_x = bin_x.reshape(B, bin_x.shape[1], self.num_patches[0], self.num_patches[1])
         # Bx(dxh)xnum_patches[0]xnum_patches[1]
+        
         sub_desc_dim = bin_x.shape[1]
 
         avg_pools = []
@@ -612,34 +661,38 @@ class CroCoExtractor:
         :param bin: apply log binning to the descriptor. default is False.
         :return: tensor of descriptors. Bx1xtxd' where d' is the dimension of the descriptors.
         """
-        assert facet in ['key', 'query', 'value', 'token'], f"""{facet} is not a supported facet for descriptors. 
+        assert facet in ['key', 'query', 'value', 'token', 'attn'], f"""{facet} is not a supported facet for descriptors. 
                                                              choose from ['key' | 'query' | 'value' | 'token'] """
-        self._extract_features(batch, [layer], facet)
-        x = self._feats[0]
+        self._extract_features(batch, batch2=None, layers=[layer], facet=facet)
+        x = self._feats[0]# 1 16 196 31 0--for mono 1--for binocular
         if facet == 'token':
-            x.unsqueeze_(dim=1)  # Bx1xtxd
+            #x.unsqueeze_(dim=1)  # Bx1xtxd
+            x = x.clone().unsqueeze(dim=1)  # Bx1xtxd
         if not include_cls:
             x = x[:, :, 1:, :]  # remove cls token
+        '''
         else:
             assert not bin, "bin = True and include_cls = True are not supported together, set one of them False."
+        '''
         if not bin:
             desc = x.permute(0, 2, 3, 1).flatten(start_dim=-2, end_dim=-1).unsqueeze(dim=1)  # Bx1xtx(dxh)
         else:
             desc = self._log_bin(x)
         return desc
 
-    def extract_saliency_maps(self, batch: torch.Tensor) -> torch.Tensor:
+    def extract_saliency_maps(self, batch: torch.Tensor, batch2: torch.Tensor = None) -> torch.Tensor:
         """
         extract saliency maps. The saliency maps are extracted by averaging several attention heads from the last layer
         in of the CLS token. All values are then normalized to range between 0 and 1.
         :param batch: batch to extract saliency maps for. Has shape BxCxHxW.
         :return: a tensor of saliency maps. has shape Bxt-1
         """
-        assert self.model_type == "dino_vits8", f"saliency maps are supported only for dino_vits model_type."
-        self._extract_features(batch, [11], 'attn')
+        assert self.model_type == "dino_vits8" or self.model_type == "crocov1", f"saliency maps are supported only for dino_vits model_type."
+        self._extract_features(batch, batch2=batch2, layers=[11], facet='key') # tested also with attn, did I reall?
         head_idxs = [0, 2, 4, 5]
-        curr_feats = self._feats[0]  # Bxhxtxt
+        curr_feats = self._feats[0]  # Bxhxtxt  # kann man bionocular--1 oder mono--0 stellen??
         cls_attn_map = curr_feats[:, head_idxs, 0, 1:].mean(dim=1)  # Bx(t-1)
+        cls_attn_map = curr_feats[:, head_idxs, :, 0].mean(dim=1)  # Bx(t-1)
         temp_mins, temp_maxs = cls_attn_map.min(dim=1)[0], cls_attn_map.max(dim=1)[0]
         cls_attn_maps = (cls_attn_map - temp_mins) / (temp_maxs - temp_mins)  # normalize to range [0,1]
         return cls_attn_maps
@@ -655,10 +708,65 @@ def str2bool(v):
     else:
         raise argparse.ArgumentTypeError('Boolean value expected.')
 
+
+import torch.nn as nn
+
+
+class PassThroughHead(nn.Module):
+    def __init__(self):
+        super(PassThroughHead, self).__init__()
+
+    def setup(self, encoder):
+        pass
+
+    def forward(self, x, img_info):
+        # Simply return the features without any modifications
+        return x
+
+
+import torch
+import torch.nn.functional as F
+
+def pad_and_resize(image_batch):
+    # Get the dimensions of the input image batch
+    batch_size, channels, height, width = image_batch.shape
+
+    # Determine the size of the padding
+    max_dim = max(height, width)
+    pad_h = (max_dim - height) // 2
+    pad_w = (max_dim - width) // 2
+
+    # Pad the image with black bars to make it quadratic
+    padded_image_batch = F.pad(image_batch, (pad_w, pad_w, pad_h, pad_h), value=0)
+
+    # Resize the padded image to 224x224 using bilinear interpolation
+    resized_image_batch = torch.nn.functional.interpolate(padded_image_batch, size=(224, 224), mode='bilinear', align_corners=False)
+    # assume 'tensor' is your image tensor with shape (1, 3, 224, 224)
+    '''
+    # Convert the PyTorch tensor to a NumPy array
+    # Ensure the tensor is on the CPU before converting
+    image_numpy = resized_image_batch.cpu().numpy()
+
+    # Remove the batch dimension
+    image_numpy = image_numpy[0]
+
+    # Transpose the dimensions to (224, 224, 3)
+    image_numpy = np.transpose(image_numpy, (1, 2, 0))
+
+    # Clip the values to [0, 1] range, if necessary
+    image_numpy = np.clip(image_numpy, 0, 1)
+
+    # Convert to 8-bit per channel (0-255) and save as PNG
+    image_numpy = (image_numpy * 255).astype(np.uint8)
+    image = Image.fromarray(image_numpy)
+    image.save('image_float.png')
+    '''
+    return resized_image_batch
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Facilitate ViT Descriptor extraction.')
-    parser.add_argument('--image_path', default='/home/imw/PycharmProjects/ZS6D/test/000001.png', type=str, required=False, help='path of the extracted image.')
-    parser.add_argument('--output_path', default='/home/imw/PycharmProjects/ZS6D', type=str, required=False, help='path to file containing extracted descriptors.')
+    parser.add_argument('--image_path', default='/home/stefan/PycharmProjects/ZS6D/test/teddy.jpg', type=str, required=False, help='path of the extracted image.')
+    parser.add_argument('--output_path', default='/home/stefan/PycharmProjects/ZS6D', type=str, required=False, help='path to file containing extracted descriptors.')
     parser.add_argument('--load_size', default=224, type=int, help='load size of the input image.')
     parser.add_argument('--stride', default=4, type=int, help="""stride of first convolution layer. 
                                                               small stride -> higher resolution.""")
@@ -669,40 +777,87 @@ if __name__ == "__main__":
     parser.add_argument('--facet', default='key', type=str, help="""facet to create descriptors from. 
                                                                     options: ['key' | 'query' | 'value' | 'token']""")
     parser.add_argument('--layer', default=11, type=int, help="layer to create descriptors from.")
-    parser.add_argument('--bin', default='False', type=str2bool, help="create a binned descriptor if True.")
+    parser.add_argument('--bin', default='True', type=str2bool, help="create a binned descriptor if True.")
 
     args = parser.parse_args()
+
+    # setting a seed so the model does not behave random
+    seed = 33  # found by checking the saliency map
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    np.random.seed(seed)
+    random.seed(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
 
     with torch.no_grad():
         device = 'cuda' if torch.cuda.is_available() else 'cpu'
         extractor = ViTExtractor(args.model_type, args.stride, device=device)
 
-        extractor_croco = CroCoExtractor(model_type='croco', stride=args.stride, device=device)
+        extractor_croco = CroCoExtractor(model_type='crocov1', stride=16, device=device) #stride 16
 
         image_batch, image_pil = extractor.preprocess(args.image_path, args.load_size)
-        image_batch_croco, image_pil_croco = extractor_croco.preprocess(args.image_path, args.load_size)
+        image_batch_croco1, image_pil_croco = extractor_croco.preprocess('/home/stefan/PycharmProjects/ZS6D/test/000248.png', args.load_size)
+        image_batch_croco2, image_pil_croco2 = extractor_croco.preprocess('/home/stefan/PycharmProjects/ZS6D/test/000392.png', args.load_size)
+
         # Resize the tensor to (1, 3, 224, 224) using bilinear interpolation
-        image_batch_croco = torch.nn.functional.interpolate(image_batch_croco, size=(224, 224), mode='bilinear', align_corners=False)
+        image_batch_croco1 = pad_and_resize(image_batch_croco1)
+        image_batch_croco2 = pad_and_resize(image_batch_croco2)
 
+        channel = image_batch_croco1[0, 0, :, :]
+        # Save the channel as a grayscale image
+        plt.imsave('channel_00.png', channel, cmap='gray')
+        # 'key', 'query', 'value']
         print(f"Image {args.image_path} is preprocessed to tensor of size {image_batch.shape}.")
-        descriptors = extractor.extract_descriptors(image_batch.to(device), layer=9, facet='key', bin= args.bin)
-        descriptors2 = extractor_croco.extract_descriptors(image_batch_croco.to(device), layer=7, facet='key', bin= args.bin)
+        #descriptors1 = extractor.extract_descriptors(image_batch_croco1.to(device), layer=11, facet='key', bin=False, include_cls=True)
+        #descriptors2 = extractor.extract_descriptors(image_batch_croco2.to(device), layer=11, facet='key', bin=False, include_cls=True)
+        #map = extractor.extract_saliency_maps(image_batch_croco.to(device))
 
-        import matplotlib.pyplot as plt
-        import torch
-        # Assuming your descriptors are in a tensor called 'descriptors2'
-        descriptors_2d = descriptors2.cpu().squeeze(0).squeeze(0)
+        descriptors1 = extractor_croco.extract_descriptors(image_batch_croco1.to(device), layer=11, facet='key', bin=False, include_cls=True)
+        descriptors2 = extractor_croco.extract_descriptors(image_batch_croco2.to(device), layer=11, facet='key', bin=False, include_cls=True)
+        map1 = extractor_croco.extract_saliency_maps(image_batch_croco1.to(device))#, batch2=image_batch_croco2.to(device))
+        map1 = map1.view(1,14,14)
+        map1 = F.interpolate(map1.unsqueeze(1), size=(224, 224), mode='bilinear', align_corners=False)
+        saliency_maps1 = map1.squeeze(1)
+        saliency_maps1 = saliency_maps1.cpu().numpy()
+        plt.imsave('saliency_maps1.png', saliency_maps1[0])
 
-        # Create the heatmap
-        plt.figure(figsize=(12, 6))  # Adjust the figure size
-        plt.imshow(descriptors_2d, cmap='viridis', aspect='auto')  # Set aspect to 'auto' to adjust the aspect ratio
-        plt.colorbar()
-        plt.title('Heatmap of Descriptors')
-        plt.xlabel('Descriptor Dimension')
-        plt.ylabel('Spatial Location')
-        plt.show()
+        map1 = extractor_croco.extract_saliency_maps(
+            image_batch_croco2.to(device))  # , batch2=image_batch_croco2.to(device))
+        map1 = map1.view(1, 14, 14)
+        map1 = F.interpolate(map1.unsqueeze(1), size=(224, 224), mode='bilinear', align_corners=False)
+        saliency_maps1 = map1.squeeze(1)
+        saliency_maps1 = saliency_maps1.cpu().numpy()
+        plt.imsave('saliency_maps2.png', saliency_maps1[0])
 
-        print(f"Descriptors are of size: {descriptors.shape}")
+
+        descriptors1_2d = descriptors1.cpu().squeeze(0).squeeze(0)
+        descriptors2_2d = descriptors2.cpu().squeeze(0).squeeze(0)
+
+        # Calculate the dot product of the tensors
+        dot_product = torch.sum(descriptors1_2d * descriptors2_2d, dim=1)
+
+        # Calculate the norms of the tensors
+        norm_tensor1 = torch.norm(descriptors1_2d, dim=1)
+        norm_tensor2 = torch.norm(descriptors2_2d, dim=1)
+
+        # Calculate the cosine similarity
+        cosine_similarity = dot_product / (norm_tensor1 * norm_tensor2)
+        print("Cosine similarity:", cosine_similarity)
+
+        # Calculate the mean cosine similarity
+        mean_cosine_similarity = torch.mean(cosine_similarity)
+        print("Cosine similarity Mean:", mean_cosine_similarity)
+
+        #channel = descriptors_2d[0, 0, :, :]
+        # Save the channel as a grayscale image
+        plt.imsave('descriptor1.png', descriptors1_2d)
+        plt.imsave('descriptor2.png', descriptors2_2d)
+
+        print(f"Descriptors are of size: {descriptors1.shape}")
         print(f"Descriptors are of size: {descriptors2.shape}")
+
+
         # torch.save(descriptors, args.output_path)
         # print(f"Descriptors saved to: {args.output_path}")

@@ -3,7 +3,7 @@ import os
 import json
 import numpy as np
 import torch
-from src.pose_extractor import PoseViTExtractor
+from src.pose_extractor import PoseCroCoExtractor
 from tools.ply_file_to_3d_coord_model import convert_unique
 from rendering.renderer_xyz import Renderer
 from rendering.model import Model3D
@@ -12,11 +12,21 @@ import cv2
 from PIL import Image
 from pose_utils import img_utils
 from rendering.utils import get_rendering, get_sympose
-
+import random
 
 if __name__=="__main__":
+    # setting a seed so the model does not behave random
+    seed = 1  # found by checking the saliency map 33
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    np.random.seed(seed)
+    random.seed(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+
     parser = argparse.ArgumentParser(description='Test pose estimation inference on test set')
-    parser.add_argument('--config_file', default="./zs6d_configs/template_gt_preparation_configs/cfg_template_gt_generation_ycbv.json")
+    parser.add_argument('--config_file', default="./zs6d_configs/template_gt_preparation_configs/cfg_template_gt_generation_ycbv_croco.json")
 
     args = parser.parse_args()
 
@@ -60,7 +70,7 @@ if __name__=="__main__":
 
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
-    extractor = PoseViTExtractor(model_type='dino_vits8', stride=4, device=device)
+    extractor = PoseCroCoExtractor(model_type='crocov1', stride=16, device=device)
 
     cam_K = np.array(config['cam_K']).reshape((3,3))
 
@@ -113,7 +123,8 @@ if __name__=="__main__":
                     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
                     img_crop, crop_x, crop_y = img_utils.make_quadratic_crop(img, [x, y, w, h])
                     img_prep, img_crop, _ = extractor.preprocess(Image.fromarray(img_crop), load_size=224)
-                    desc = extractor.extract_descriptors(img_prep.to(device), layer=11, facet='key', bin=False, include_cls=True)
+
+                    desc = extractor.extract_descriptors(img_prep.to(device), layer=5, facet='key', bin=False, include_cls=True)
                     desc = desc.squeeze(0).squeeze(0).detach().cpu().numpy()
 
                     R = obj_poses[i][:3,:3]
@@ -133,7 +144,6 @@ if __name__=="__main__":
 
                     img_uv,_,_ = img_utils.make_quadratic_crop(img_uv, [crop_y, crop_x, crop_size, crop_size])
 
-
                     # Storing template information:
                     tmp_dict = {"img_id": str(i),
                                 "img_name":os.path.join(os.path.join(path_template_folder,file)),
@@ -148,8 +158,7 @@ if __name__=="__main__":
                                 "img_crop": os.path.join(path_to_template_desc, file),
                                 "img_desc": os.path.join(path_to_template_desc, f"{file.split('.')[0]}.npy"),
                                 "uv_crop": os.path.join(path_to_template_desc, f"{file.split('.')[0]}_uv.npy"),
-
-                    }
+                                }
 
                     tmp_list.append(tmp_dict)
 
