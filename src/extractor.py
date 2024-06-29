@@ -73,12 +73,8 @@ class ViTExtractor:
         """
         if 'dino' in model_type:
             model = torch.hub.load('facebookresearch/dino:main', model_type)
-            
-            # model = torch.hub.load('facebookresearch/dinov2', 'dinov2_vits14')
-        elif 'croco' in model_type:
-            ckpt = torch.load('/home/stefan/PycharmProjects/ZS6D/pretrained_models/CroCo.pth')
-            model = CroCoNet(**ckpt.get('croco_kwargs', {}))
 
+            # model = torch.hub.load('facebookresearch/dinov2', 'dinov2_vits14')
         else:  # model from timm -- load weights from timm to dino model (enables working on arbitrary size images).
             temp_model = timm.create_model(model_type, pretrained=True)
             model_type_dict = {
@@ -284,8 +280,8 @@ class ViTExtractor:
                                 temp_i = max(0, min(i, self.num_patches[0] - 1))
                                 temp_j = max(0, min(j, self.num_patches[1] - 1))
                                 bin_x[:, part_idx * sub_desc_dim: (part_idx + 1) * sub_desc_dim, y, x] = avg_pools[k][
-                                                                                                           :, :, temp_i,
-                                                                                                           temp_j]
+                                                                                                         :, :, temp_i,
+                                                                                                         temp_j]
                             part_idx += 1
         bin_x = bin_x.flatten(start_dim=-2, end_dim=-1).permute(0, 2, 1).unsqueeze(dim=1)
         # Bx1x(t-1)x(dxh)
@@ -325,7 +321,7 @@ class ViTExtractor:
         :return: a tensor of saliency maps. has shape Bxt-1
         """
         assert self.model_type == "dino_vits8", f"saliency maps are supported only for dino_vits model_type."
-        self._extract_features(batch, [11], 'key') # key
+        self._extract_features(batch, [11], 'attn')
         head_idxs = [0, 2, 4, 5]
         curr_feats = self._feats[0] #Bxhxtxt
         cls_attn_map = curr_feats[:, head_idxs, 0, 1:].mean(dim=1) #Bx(t-1)
@@ -692,7 +688,7 @@ class CroCoExtractor:
         :return: a tensor of saliency maps. has shape Bxt-1
         """
         assert self.model_type == "dino_vits8" or self.model_type == "crocov1", f"saliency maps are supported only for dino_vits model_type."
-        self._extract_features(batch, batch2=batch2, layers=[11], facet='key') # tested also with attn
+        self._extract_features(batch, batch2=batch2, layers=[11], facet='key') # tested also with attn, did I reall?
         head_idxs = [0, 2, 4, 5]
         curr_feats = self._feats[0]  # Bxhxtxt  # kann man bionocular--1 oder mono--0 stellen??
         cls_attn_map = curr_feats[:, head_idxs, 0, 1:].mean(dim=1)  # Bx(t-1)
