@@ -49,11 +49,27 @@ def visualize_mask(mask, grid_size):
     plt.show()
 
 def calculate_advanced_similarity(img1, img2):
-    # Convert images from torch tensors to numpy arrays
+    """
+        Compute several similarity metrics
+
+        Args:
+        img1: torch.Tensor
+        img2: torch.Tensor
+
+        Returns:
+        tuple: A tuple containing:
+            - combined_similarity (float): An overall similarity score.
+            - dict: A dictionary containing the following similarity metrics:
+                - 'ssim' (float): Structural Similarity Index
+                - 'color_similarity' (float): Color similarity metric
+                - 'edge_similarity' (float): Edge similarity metric
+                - 'inverse_mse' (float): Inverse of Mean Squared Error
+                - 'warp_similarity' (float): Warp similarity metric scaled by 10
+    """
     img1 = (img1.squeeze().permute(1, 2, 0).cpu().numpy() * 255).astype(np.uint8)
     img2 = (img2.squeeze().permute(1, 2, 0).cpu().numpy() * 255).astype(np.uint8)
 
-    # Convert to grayscale for luminance SSIM
+    # Grayscale for luminance SSIM
     gray1 = cv2.cvtColor(img1, cv2.COLOR_RGB2GRAY)
     gray2 = cv2.cvtColor(img2, cv2.COLOR_RGB2GRAY)
 
@@ -111,15 +127,14 @@ def calculate_advanced_similarity(img1, img2):
 
     warp_sim = warping_similarity(img1, img2)
     def calculate_sharpness(image):
-        # Convert the image to grayscale
-        gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
 
+        gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
         # Compute the Laplacian of the image and then return the focus measure
         return cv2.Laplacian(gray, cv2.CV_64F).var()
     print(calculate_sharpness(img2))
 
-    # Combine all metrics (you can adjust weights as needed)
-    combined_similarity = (ssim_value + color_sim + edge_sim + mse + 10*warp_sim) / 5
+    # Combine all metrics adjust wights as needed
+    combined_similarity = (ssim_value + color_sim + edge_sim + mse + 10 * warp_sim) / 5
 
     return combined_similarity, {
         'ssim': ssim_value,
@@ -132,27 +147,29 @@ def calculate_advanced_similarity(img1, img2):
 def process_image(model, image_path, ref_image, device, trfs, imagenet_mean_tensor, imagenet_std_tensor):
     image1 = trfs(Image.open(image_path).convert('RGB')).to(device, non_blocking=True).unsqueeze(0)
     image2 = ref_image
-    # Example usage
-    image_size = 224
-    patch_size = 16
 
-    #custom_mask = create_custom_mask(image_size, patch_size)
-    mask_array = [
-    [1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1],
-    [1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1],
-    [1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0],
-    [0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1],
-    [1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1],
-    [1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1],
-    [1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0],
-    [0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1],
-    [1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1],
-    [1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1],
-    [1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0],
-    [0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1],
-    [1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1],
-    [1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1]
-    ]
+    # Alternative masks
+    if False:
+        image_size = 224
+        patch_size = 16
+
+        custom_mask = create_custom_mask(image_size, patch_size)
+        mask_array = [
+        [1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1],
+        [1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1],
+        [1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0],
+        [0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1],
+        [1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1],
+        [1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1],
+        [1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0],
+        [0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1],
+        [1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1],
+        [1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1],
+        [1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0],
+        [0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1],
+        [1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1],
+        [1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1]
+        ]
 
     mask_array = [
         [0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1],
@@ -202,7 +219,7 @@ def process():
     trfs = Compose([ToTensor(), Normalize(mean=imagenet_mean, std=imagenet_std),transforms.Resize((224, 224))])
 
     # Load the reference image #########################################################################################
-    ref_image = trfs(Image.open('/home/stefan/PycharmProjects/ZS6D/test/drill/4.png').convert('RGB')).to(device, non_blocking=True).unsqueeze(0)
+    ref_image = trfs(Image.open('/home/stefan/PycharmProjects/ZS6D/test/drill/3.png').convert('RGB')).to(device, non_blocking=True).unsqueeze(0)
     ####################################################################################################################
     # load model
     ckpt = torch.load('/home/stefan/PycharmProjects/ZS6D/pretrained_models/CroCo_V2_ViTLarge_BaseDecoder.pth', 'cpu') #_V2_ViTLarge_BaseDecoder
@@ -308,7 +325,7 @@ def find_match():
         return ssim_value, mse
 
     # Load images
-    img1 = cv2.imread('/home/stefan/PycharmProjects/ZS6D/test/drill/4.png')
+    img1 = cv2.imread('/home/stefan/PycharmProjects/ZS6D/test/drill/3.png')
 
     # Directory containing decoded images
     decoded_images_dir = '/home/stefan/PycharmProjects/ZS6D/assets_match/decoded_images'
