@@ -1,21 +1,18 @@
 import os
 import torch
+import time
 from croco.models.crocom import CroCoNet
 from PIL import Image
 import torchvision.transforms
 from torchvision.transforms import ToTensor, Normalize, Compose
 import matplotlib.pyplot as plt
 from torchvision import transforms
-import numpy as np
-from numpy import random
-from skimage.metrics import structural_similarity as ssim
-import numpy as np
-from skimage.metrics import structural_similarity as ssim
 from skimage.color import rgb2gray
 from skimage.feature import canny
-from scipy.spatial.distance import cosine
-from sklearn.metrics import mean_squared_error
+from heapq import heappush, heappushpop
 import cv2
+import numpy as np
+from skimage.metrics import structural_similarity as ssim
 
 def create_custom_mask(mask_array):
     """
@@ -144,55 +141,31 @@ def calculate_advanced_similarity(img1, img2):
         'warp_similarity': warp_sim*10
     }
 
-def process_image(model, image_path, ref_image, device, trfs, imagenet_mean_tensor, imagenet_std_tensor):
-    image1 = trfs(Image.open(image_path).convert('RGB')).to(device, non_blocking=True).unsqueeze(0)
-    image2 = ref_image
+def process_image(model, image_path, ref_image, device, trfs, imagenet_mean_tensor, imagenet_std_tensor, mask_array):
+    """
+    Process an image using a given model and compare it to a reference image.
 
-    # Alternative masks
-    if False:
-        image_size = 224
-        patch_size = 16
+    This function loads an image, applies transformations, runs it through a model along with a reference image,
+    decodes the output, and calculates the similarity between the decoded image and the input image.
 
-        custom_mask = create_custom_mask(image_size, patch_size)
-        mask_array = [
-        [1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1],
-        [1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1],
-        [1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0],
-        [0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1],
-        [1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1],
-        [1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1],
-        [1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0],
-        [0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1],
-        [1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1],
-        [1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1],
-        [1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0],
-        [0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1],
-        [1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1],
-        [1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1]
-        ]
+    Parameters:
+    model (torch.nn.Module): The neural network model to use for processing.
+    image_path (str): Path to the image file to be processed.
+    ref_image (torch.Tensor): The reference image tensor.
+    device (torch.device): The device (CPU or GPU) to run the computations on.
+    trfs (torchvision.transforms.Compose): Composition of image transformations to apply.
+    imagenet_mean_tensor (torch.Tensor): Mean tensor for ImageNet normalization.
+    imagenet_std_tensor (torch.Tensor): Standard deviation tensor for ImageNet normalization.
+    mask_array (numpy.ndarray): Array used to create a custom mask.
 
-    mask_array = [
-        [0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1],
-        [1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1],
-        [1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0],
-        [1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1],
-        [0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1],
-        [1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1],
-        [1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0],
-        [1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1],
-        [0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1],
-        [1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1],
-        [1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0],
-        [1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1],
-        [0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1],
-        [1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1]
-    ]
-
+    Returns:
+    torch.Tensor: The decoded image tensor.
+    """
+    image1 = ref_image
+    image2 = trfs(Image.open(image_path).convert('RGB')).to(device, non_blocking=True).unsqueeze(0)
 
     custom_mask = create_custom_mask(mask_array)
-    image3 = image2
-    image2 = image1
-    image1 = image3
+
     with torch.inference_mode():
         out, mask, target = model(image1, image2, custom_mask=custom_mask)
 
@@ -209,8 +182,23 @@ def process_image(model, image_path, ref_image, device, trfs, imagenet_mean_tens
 
     return decoded_image
 
-def process():
-    device = torch.device('cuda:0' if torch.cuda.is_available() and torch.cuda.device_count()>0 else 'cpu')
+def process(ref_image_path, ckpt_path, output_folder, assets_folder, mask_array):
+    """
+        Process a set of images using a reference image and a pre-trained model.
+
+        This function sets up the environment, loads a model and a reference image,
+        and then processes all images in a specified folder, saving the decoded results.
+
+        Parameters:
+        ref_image_path (str): Path to the reference image file.
+        ckpt_path (str): Path to the checkpoint file containing the pre-trained model.
+        output_folder (str): Path to the folder where decoded images will be saved.
+        assets_folder (str): Path to the folder containing images to be processed.
+
+        Returns:
+        None
+    """
+    device = torch.device('cuda:0' if torch.cuda.is_available() and torch.cuda.device_count() > 0 else 'cpu')
 
     imagenet_mean = [0.485, 0.456, 0.406]
     imagenet_mean_tensor = torch.tensor(imagenet_mean).view(1,3,1,1).to(device, non_blocking=True)
@@ -218,36 +206,40 @@ def process():
     imagenet_std_tensor = torch.tensor(imagenet_std).view(1,3,1,1).to(device, non_blocking=True)
     trfs = Compose([ToTensor(), Normalize(mean=imagenet_mean, std=imagenet_std),transforms.Resize((224, 224))])
 
-    # Load the reference image #########################################################################################
-    ref_image = trfs(Image.open('/home/stefan/PycharmProjects/ZS6D/test/drill/3.png').convert('RGB')).to(device, non_blocking=True).unsqueeze(0)
-    ####################################################################################################################
+    # Load the reference image
+    ref_image = trfs(Image.open(ref_image_path).convert('RGB')).to(device, non_blocking=True).unsqueeze(0)
+
     # load model
-    ckpt = torch.load('/home/stefan/PycharmProjects/ZS6D/pretrained_models/CroCo_V2_ViTLarge_BaseDecoder.pth', 'cpu') #_V2_ViTLarge_BaseDecoder
-    model = CroCoNet(**ckpt.get('croco_kwargs',{}),mask_ratio=0.9).to(device)
+    ckpt = torch.load(ckpt_path, 'cpu')
+    model = CroCoNet(**ckpt.get('croco_kwargs', {}), mask_ratio=0.9).to(device)
     model.eval()
     model.load_state_dict(ckpt['model'], strict=True)
 
     # Create output folder
-    output_folder = '/home/stefan/PycharmProjects/ZS6D/assets_match/decoded_images'
     os.makedirs(output_folder, exist_ok=True)
-
-    # Process all images in the assets folder
-    assets_folder = '/home/stefan/PycharmProjects/ZS6D/assets_match'
     for filename in os.listdir(assets_folder):
         if filename.lower().endswith(('.png', '.jpg', '.jpeg')):
             image_path = os.path.join(assets_folder, filename)
-            decoded_image = process_image(model, image_path, ref_image, device, trfs, imagenet_mean_tensor, imagenet_std_tensor)
+            decoded_image = process_image(model, image_path, ref_image, device, trfs, imagenet_mean_tensor,
+                                          imagenet_std_tensor, mask_array)
 
             # Save the decoded image
             output_path = os.path.join(output_folder, f'decoded_{filename}')
             torchvision.utils.save_image(decoded_image, output_path)
             print(f'Decoded image saved: {output_path}')
 
-def find_match():
-    import cv2
-    import numpy as np
-    from skimage.metrics import structural_similarity as ssim
+def find_match(ref_image_path, decoded_images_dir, mask_array):
+    """
+        Match a reference image with several decoded images
 
+        Args:
+        ref_image_path: String, path to the reference image file
+        decoded_images_dir: String, path to the decoded image files
+        mask_array: np.Array, used mask
+
+        Returns:
+        String: Name of best matched image
+    """
     def expand_mask(mask_array, patch_size):
         # Convert mask array to numpy array
         mask = np.array(mask_array)
@@ -266,42 +258,6 @@ def find_match():
         masked_image[mask == 0] = 0  # Set pixels to black where mask is 0
 
         return masked_image
-
-    # Your mask array
-    mask_array = [
-        [1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1],
-        [1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1],
-        [1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0],
-        [0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1],
-        [1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1],
-        [1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1],
-        [1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0],
-        [0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1],
-        [1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1],
-        [1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1],
-        [1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0],
-        [0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1],
-        [1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1],
-        [1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1]
-    ]
-
-    mask_array = [
-        [0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1],
-        [1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1],
-        [1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0],
-        [1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1],
-        [0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1],
-        [1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1],
-        [1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0],
-        [1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1],
-        [0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1],
-        [1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1],
-        [1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0],
-        [1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1],
-        [0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1],
-        [1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1]
-    ]
-
 
     # Expand the mask
     expanded_mask = expand_mask(mask_array, 16)
@@ -325,35 +281,7 @@ def find_match():
         return ssim_value, mse
 
     # Load images
-    img1 = cv2.imread('/home/stefan/PycharmProjects/ZS6D/test/drill/3.png')
-
-    # Directory containing decoded images
-    decoded_images_dir = '/home/stefan/PycharmProjects/ZS6D/assets_match/decoded_images'
-    best_match = None
-    lowest_mse = float('inf')
-
-    # Process all images in the directory
-    for filename in os.listdir(decoded_images_dir):
-        if filename.endswith(('.png', '.jpg', '.jpeg')):
-            img_path = os.path.join(decoded_images_dir, filename)
-            img2 = cv2.imread(img_path)
-
-            print(f"Processing: {filename}")
-            # Apply mask
-            img2 = apply_mask_to_image(img2, expanded_mask)
-
-            # Measure quality
-            ssim_value, mse = measure_quality(img1, img2)
-
-            print(f"SSIM: {ssim_value:.4f}")
-            print(f"MSE: {mse:.4f}")
-
-            # Update best match if this image has a lower MSE
-            if mse < lowest_mse:
-                lowest_mse = mse
-                best_match = filename
-
-    from heapq import heappush, heappushpop
+    img1 = cv2.imread(ref_image_path)
 
     top_10 = []
 
@@ -362,8 +290,8 @@ def find_match():
         if filename.endswith(('.png', '.jpg', '.jpeg')):
             img_path = os.path.join(decoded_images_dir, filename)
             img2 = cv2.imread(img_path)
-
             print(f"Processing: {filename}")
+
             # Apply mask
             img2 = apply_mask_to_image(img2, expanded_mask)
 
@@ -388,13 +316,63 @@ def find_match():
         print(f"{i}. {filename} (MSE: {-neg_mse:.4f})")
 
     # Return the name of the best match
-    return best_match
+    return top_10[0][1]
 
 def main():
-    process()
-    # Call the function and print the result
-    best_match = find_match()
+    start_time = time.time()
+    # Alternative masks
+    if False:
+        image_size = 224
+        patch_size = 16
+
+        custom_mask = create_custom_mask(image_size, patch_size)
+        mask_array = [
+            [1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1],
+            [1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1],
+            [1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0],
+            [0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1],
+            [1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1],
+            [1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1],
+            [1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0],
+            [0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1],
+            [1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1],
+            [1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1],
+            [1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0],
+            [0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1],
+            [1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1],
+            [1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1]
+        ]
+
+    mask_array = [
+        [0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1],
+        [1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1],
+        [1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0],
+        [1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1],
+        [0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1],
+        [1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1],
+        [1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0],
+        [1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1],
+        [0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1],
+        [1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1],
+        [1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0],
+        [1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1],
+        [0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1],
+        [1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1]
+    ]
+
+    process('/home/stefan/PycharmProjects/ZS6D/test/drill/3.png',
+                     '/home/stefan/PycharmProjects/ZS6D/pretrained_models/CroCo.pth',#_V2_ViTLarge_BaseDecoder
+                     '/home/stefan/PycharmProjects/ZS6D/assets_match/decoded_images',
+                    '/home/stefan/PycharmProjects/ZS6D/assets_match', mask_array)
+
+    best_match = find_match('/home/stefan/PycharmProjects/ZS6D/test/drill/3.png',
+                             '/home/stefan/PycharmProjects/ZS6D/assets_match/decoded_images', mask_array)
+
     print(f"The image with the lowest MSE is: {best_match}")
+
+    end_time = time.time()
+    processing_time = end_time - start_time
+    print(f"Processing time: {processing_time:.2f} seconds")
 
 if __name__=="__main__":
     main()
