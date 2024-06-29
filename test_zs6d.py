@@ -43,9 +43,6 @@ for i in range(len(data_gt[img_id])):
 
     # To estimate the objects Rotation R and translation t the input image, the object_id, a segmentation mask and camera matrix are necessary
     R_est, t_est = pose_estimator.get_pose(img, str(obj_id), mask, cam_K, bbox=None)
-    if R_est == None:
-        print("Failed to find R_est... ")
-        continue
 
     end_time = time.time()
 
