@@ -1,15 +1,18 @@
 # ZS6D with added CroCo support and new pipeline of Template Matching
 
-<img src="./assets/Robot_Vision_CroCo_Dino.png" width="500" alt="teaser"/>
 
-Dino vs CroCo (Cross View Completion, self-supervised pre-trained ViT) 
+![dino_croco](./assets/Robot_Vision_CroCo_Dino.png)
 
-<img src="./assets/croco_pipeline.png" width="500" alt="teaser"/>
+Dino vs CroCo (Cross View Completion, self-supervised pre-trained ViT)
 
-After coming to the conclusion that the Dino is superior to CroCo in descriptor matching, a new pipeline is proposed for
-tmplate matching.
+![cpipeline](./assets/croco_pipeline.png)
 
-<img src="./assets/overview.png" width="500" alt="teaser"/>
+After coming to the conclusion that Dino is superior to CroCo in descriptor matching, a new pipeline is proposed for
+template matching.
+
+<p align="center">
+  <img src="./assets/overview.png" width="500" alt="teaser"/>
+</p>
 
 We demonstrate the effectiveness of deep features extracted from self-supervised, pre-trained Vision Transformer (ViT) for Zero-shot 6D pose estimation. For more detailed information check out the corresponding [[paper](https://arxiv.org/pdf/2309.11986.pdf)].
 
