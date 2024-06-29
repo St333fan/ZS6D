@@ -22,11 +22,11 @@ with torch.no_grad():
     extractor_croco = CroCoExtractor(model_type='crocov1', stride=16, device=device)  # stride 16
     #extractor_croco = ViTExtractor(device=device)
     image_batch_croco1, image_pil_croco = extractor_croco.preprocess(
-        '/home/stefan/Desktop/worst_dose.png', 224)#, mask=False) #000248.png
+        '/home/stefan/Desktop/000347.png', 224)#, mask=False) #000248.png
     #image_batch_croco1, image_pil_croco = extractor_croco.preprocess(
       #  '/home/stefan/PycharmProjects/ZS6D/test/000392.png', 224, mask=False)  # 000248.png
     image_batch_croco2, image_pil_croco2 = extractor_croco.preprocess(
-        '/home/stefan/Desktop/cut_dose.png', 224)#, mask=False)#000392.png
+        '/home/stefan/Desktop/bechertest1.png', 224)#, mask=False)#000392.png
     # Remove the batch dimension and move channels to the end
     image_array = image_batch_croco1.squeeze(0).permute(1, 2, 0).numpy()
 

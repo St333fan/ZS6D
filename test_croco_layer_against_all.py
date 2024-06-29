@@ -67,30 +67,28 @@ with torch.no_grad():
     strings = ['token', 'attn']
     layer = 11
 
-    folder_path = '/home/stefan/Documents/ycbv_desc_enc_11_nobin_nocls/obj_1'
+    folder_path = '/home/stefan/Documents/ycbv_desc_enc_11_nobin_nocls/obj_15'
     png_files = [f for f in os.listdir(folder_path) if f.endswith('.png')]
     results = defaultdict(list)
 
     extractor_croco = CroCoExtractor(model_type='crocov1', stride=16, device=device)
     image_batch_croco2, image_pil_croco2 = extractor_croco.preprocess(
-        '/home/stefan/Desktop/cut_dose.png', 224, mask=False)
+        '/home/stefan/PycharmProjects/ZS6D/test/drill/0.png', 224)
     # Loop over the .png files
     for png_file in png_files:
-        file_path = '/home/stefan/Documents/ycbv_desc_enc_11_nobin_nocls/obj_1/' + png_file
+        file_path = '/home/stefan/Documents/ycbv_desc_enc_11_nobin_nocls/obj_15/' + png_file
 
         image_batch_croco1, image_pil_croco = extractor_croco.preprocess(
-            image_path=file_path, load_size=224, mask=False)  # 000248.png
+            image_path=file_path, load_size=224)
 
-
-        image_pil_croco = replace_background(image_pil_croco)
-
-        imagenet_mean = [0.485, 0.456, 0.406]
-        imagenet_mean_tensor = torch.tensor(imagenet_mean).view(1, 3, 1, 1).to(device, non_blocking=True)
-        imagenet_std = [0.229, 0.224, 0.225]
-        imagenet_std_tensor = torch.tensor(imagenet_std).view(1, 3, 1, 1).to(device, non_blocking=True)
-
-        trfs = Compose([ToTensor(), Normalize(mean=imagenet_mean, std=imagenet_std), transforms.Resize((224, 224))])
-        image_batch_croco1 = trfs(image_pil_croco.convert('RGB')).to(device, non_blocking=True).unsqueeze(0)
+        if False:  # replace background test
+            image_pil_croco = replace_background(image_pil_croco)
+            imagenet_mean = [0.485, 0.456, 0.406]
+            imagenet_mean_tensor = torch.tensor(imagenet_mean).view(1, 3, 1, 1).to(device, non_blocking=True)
+            imagenet_std = [0.229, 0.224, 0.225]
+            imagenet_std_tensor = torch.tensor(imagenet_std).view(1, 3, 1, 1).to(device, non_blocking=True)
+            trfs = Compose([ToTensor(), Normalize(mean=imagenet_mean, std=imagenet_std), transforms.Resize((224, 224))])
+            image_batch_croco1 = trfs(image_pil_croco.convert('RGB')).to(device, non_blocking=True).unsqueeze(0)
 
 
         var_name = png_file[:-4]
