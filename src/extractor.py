@@ -688,7 +688,7 @@ class CroCoExtractor:
         :return: a tensor of saliency maps. has shape Bxt-1
         """
         assert self.model_type == "dino_vits8" or self.model_type == "crocov1", f"saliency maps are supported only for dino_vits model_type."
-        self._extract_features(batch, batch2=batch2, layers=[11], facet='key') # tested also with attn, did I reall?
+        self._extract_features(batch, batch2=batch2, layers=[5], facet='attn') # tested also with attn, did I reall?
         head_idxs = [0, 2, 4, 5]
         curr_feats = self._feats[0]  # Bxhxtxt  # kann man bionocular--1 oder mono--0 stellen??
         cls_attn_map = curr_feats[:, head_idxs, 0, 1:].mean(dim=1)  # Bx(t-1)
@@ -765,7 +765,7 @@ def pad_and_resize(image_batch):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Facilitate ViT Descriptor extraction.')
-    parser.add_argument('--image_path', default='/home/stefan/PycharmProjects/ZS6D/test/teddy.jpg', type=str, required=False, help='path of the extracted image.')
+    parser.add_argument('--image_path', default='/home/stefan/PycharmProjects/ZS6D/test/000248.png', type=str, required=False, help='path of the extracted image.')
     parser.add_argument('--output_path', default='/home/stefan/PycharmProjects/ZS6D', type=str, required=False, help='path to file containing extracted descriptors.')
     parser.add_argument('--load_size', default=224, type=int, help='load size of the input image.')
     parser.add_argument('--stride', default=4, type=int, help="""stride of first convolution layer. 
@@ -798,7 +798,7 @@ if __name__ == "__main__":
         extractor_croco = CroCoExtractor(model_type='crocov1', stride=16, device=device) #stride 16
 
         image_batch, image_pil = extractor.preprocess(args.image_path, args.load_size)
-        image_batch_croco1, image_pil_croco = extractor_croco.preprocess('/home/stefan/PycharmProjects/ZS6D/test/000248.png', args.load_size)
+        image_batch_croco1, image_pil_croco = extractor_croco.preprocess('/home/stefan/PycharmProjects/ZS6D/test/maskcutbetter.png', args.load_size)
         image_batch_croco2, image_pil_croco2 = extractor_croco.preprocess('/home/stefan/PycharmProjects/ZS6D/test/000392.png', args.load_size)
 
         # Resize the tensor to (1, 3, 224, 224) using bilinear interpolation
@@ -814,8 +814,8 @@ if __name__ == "__main__":
         #descriptors2 = extractor.extract_descriptors(image_batch_croco2.to(device), layer=11, facet='key', bin=False, include_cls=True)
         #map = extractor.extract_saliency_maps(image_batch_croco.to(device))
 
-        descriptors1 = extractor_croco.extract_descriptors(image_batch_croco1.to(device), layer=11, facet='key', bin=False, include_cls=True)
-        descriptors2 = extractor_croco.extract_descriptors(image_batch_croco2.to(device), layer=11, facet='key', bin=False, include_cls=True)
+        descriptors1 = extractor_croco.extract_descriptors(image_batch_croco1.to(device), layer=5, facet='key', bin=False, include_cls=True)
+        descriptors2 = extractor_croco.extract_descriptors(image_batch_croco2.to(device), layer=5, facet='key', bin=False, include_cls=True)
         map1 = extractor_croco.extract_saliency_maps(image_batch_croco1.to(device))#, batch2=image_batch_croco2.to(device))
         map1 = map1.view(1,14,14)
         map1 = F.interpolate(map1.unsqueeze(1), size=(224, 224), mode='bilinear', align_corners=False)

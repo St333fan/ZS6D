@@ -21,10 +21,13 @@ logging.basicConfig(level=logging.INFO, filename="pose_estimation.log",
                     format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
+'''
+    ./cfg_ycbv_inference_bop_myset.json --> exchange to your liking
+'''
 
 if __name__=="__main__":
     parser = argparse.ArgumentParser(description='Test pose estimation inference on test set')
-    parser.add_argument('--config_file', default="./zs6d_configs/bop_eval_configs/cfg_ycbv_inference_bop.json")
+    parser.add_argument('--config_file', default="./zs6d_configs/bop_eval_configs/cfg_ycbv_inference_bop_myset.json")
 
     args = parser.parse_args()
 

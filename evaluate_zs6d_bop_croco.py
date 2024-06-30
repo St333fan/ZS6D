@@ -4,7 +4,7 @@ import os
 import torch
 from tqdm import tqdm
 import numpy as np
-from src.pose_extractor import PoseViTExtractor
+from src.pose_extractor import PoseViTExtractor, PoseCroCoExtractor
 from pose_utils.data_utils import ImageContainer_masks
 import pose_utils.img_utils as img_utils
 from PIL import Image
@@ -21,10 +21,13 @@ logging.basicConfig(level=logging.INFO, filename="pose_estimation.log",
                     format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
+'''
+    ./cfg_ycbv_inference_bop_myset.json --> exchange to your liking
+'''
 
 if __name__=="__main__":
     parser = argparse.ArgumentParser(description='Test pose estimation inference on test set')
-    parser.add_argument('--config_file', default="./zs6d_configs/bop_eval_configs/cfg_ycbv_inference_bop.json")
+    parser.add_argument('--config_file', default="./zs6d_configs/bop_eval_configs/cfg_ycbv_inference_bop_myset_croco.json")
 
     args = parser.parse_args()
 
@@ -61,8 +64,8 @@ if __name__=="__main__":
         
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
-    extractor = PoseViTExtractor(model_type='dino_vits8', stride=4, device=device)
-    print("Loading PoseViTExtractor is done!")
+    extractor = PoseCroCoExtractor(model_type='crocov1', stride=16, device=device)
+    print("Loading PoseCroCoExtractor is done!")
 
     # Loading templates into gpu
     templates_desc = {}
@@ -142,7 +145,7 @@ if __name__=="__main__":
                     img_prep, img_crop,_ = extractor.preprocess(Image.fromarray(img_crop), load_size=224)
 
                     with torch.no_grad():
-                        desc = extractor.extract_descriptors(img_prep.to(device), layer=11, facet='key', bin=False, include_cls=True)
+                        desc = extractor.extract_descriptors(img_prep.to(device), layer=5, facet='key', bin=False, include_cls=True)
                         img_data.descs.append(desc.squeeze(0).squeeze(0).detach().cpu())
                     
                     img_data.y_offsets.append(y_offset)
