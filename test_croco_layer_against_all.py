@@ -1,24 +1,13 @@
-import cv2
-
 from src.extractor import CroCoExtractor, pad_and_resize, ViTExtractor
-import torch
-import numpy as np
+from torchvision.transforms import ToTensor, Normalize, Compose
+from torchvision import transforms
+from collections import defaultdict
 import random
 import matplotlib
 matplotlib.use('Agg')
-import matplotlib.pyplot as plt
 import os
 import numpy as np
-from collections import defaultdict
-from PIL import Image
-import numpy as np
-
-from torchvision.transforms import ToTensor, Normalize, Compose
-from torchvision import transforms
-from PIL import Image
 import torch
-
-
 
 def replace_background(input_image, bg_color=(0, 255, 0)):
     """
