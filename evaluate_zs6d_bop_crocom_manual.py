@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 
 if __name__=="__main__":
     parser = argparse.ArgumentParser(description='Test pose estimation inference on test set')
-    parser.add_argument('--config_file', default="./zs6d_configs/bop_eval_configs/cfg_ycbv_inference_bop_myset_croco.json")
+    parser.add_argument('--config_file', default="./zs6d_configs/bop_eval_configs/cfg_ycbv_inference_bop_myset.json")
 
     args = parser.parse_args()
 
@@ -47,7 +47,7 @@ if __name__=="__main__":
         norm_factors = json.load(f)
 
 
-    #Set up a results csv file:
+    # Set up a results csv file:
     csv_file = os.path.join('./results', config['results_file'])
 
     # Column names for the CSV file
@@ -69,20 +69,6 @@ if __name__=="__main__":
     print("Loading PoseViTExtractor is done!")
 
     matches = []
-
-    # Loading templates into gpu
-    templates_desc = {}
-    templates_crops = {}
-    tmpdic_per_obj = {}
-    templates_gt_new = {}
-    for obj_id, template_labels in tqdm(templates_gt.items()):
-        try:
-            templates_gt_new[obj_id] = [template_label for i, template_label in enumerate(template_labels) if
-                                        i % config['template_subset'] == 0]
-        except Exception as e:
-            logger.error(f"Error processing templates for object {obj_id}: {e}")
-
-    print("Preparing templates finished!")
 
     # extracted data, if the mask was bad, the image was not matched!
     #['000048_1|1|000447.png', '000048_1|6|000490.png', '000048_1|14|000107.png', '000048_1|19|000607.png', '000048_1|20|000557.png']
@@ -146,7 +132,7 @@ if __name__=="__main__":
                     mask = img_utils.rle_to_mask(img_label['mask_sam'])
                 except KeyError:
                     print(f"Warning: 'mask_sam' not found or bad defined in img_label. Skipping this iteration.")
-                    continue  # This will skip to the next iteration of the loop
+                    continue  # skip to the next iteration of the loop
 
                 mask = mask.astype(np.uint8)
 
@@ -163,6 +149,9 @@ if __name__=="__main__":
                 img_data.crops.append(Image.fromarray(img_crop))
 
                 img_prep, img_crop,_ = extractor.preprocess(Image.fromarray(img_crop), load_size=224)
+
+                plt.imshow(img_crop)
+                plt.show()
 
                 mask_array = [
                     [0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1],
@@ -182,7 +171,7 @@ if __name__=="__main__":
                 ]
 
                 assets_folder = '/home/stefan/PycharmProjects/ZS6D/templates/ycbv_desc/'+'obj_'+ str(img_label['obj_id'])
-                '''
+
                 croco_match.process(ref_image=img_crop,
                                     ckpt_path='/home/stefan/PycharmProjects/ZS6D/pretrained_models/CroCo.pth',
                                     # _V2_ViTLarge_BaseDecoder
@@ -195,134 +184,14 @@ if __name__=="__main__":
                                 mask_array=mask_array)
 
                 best_match = best_match.replace("decoded_", "")
+                best_temp = Image.open('/home/stefan/PycharmProjects/ZS6D/templates/ycbv_desc/'+'obj_'+
+                                  str(img_label['obj_id']) +'/'+ best_match)
+
+                plt.imshow(best_temp)
+                plt.show()
 
                 print(best_match)
                 matches.append(all_id+'|'+ str(img_label['obj_id']) +'|'+best_match)
-                '''
-                matches = ['000048_1|1|000447.png', '000048_1|1|000050.png', '000048_1|6|000490.png', '000048_1|14|000107.png', '000048_1|19|000607.png', '000048_1|20|000557.png']
-
-                img_data.y_offsets.append(y_offset)
-                img_data.x_offsets.append(x_offset)
-                img_data.masks.append(mask_3_channel)
 
         print(matches)
-
-        for i in range(len(img_data.crops)):
-            start_time = time.time()
-            object_id = img_data.obj_ids[i]
-
-            # Get the match for this iteration
-            if i < len(matches):
-                match = matches[i]
-                # Split the match and extract the object ID and best_match filename
-                _, obj_id, best_match = match.split('|')
-            else:
-                # Handle the case when there are more crops than matches
-                print(f"Warning: No match available for crop {i}")
-                continue
-
-            best_temp = Image.open(f'/home/stefan/PycharmProjects/ZS6D/templates/ycbv_desc/obj_{obj_id}/{best_match}')
-
-            if img_data.crops[i] is not None:
-                min_err = np.inf
-                pose_est = False
-
-                template = best_temp
-
-                try:
-                    with torch.no_grad():
-                        points1, points2, crop_pil, template_pil = extractor.find_correspondences_fastkmeans(img_data.crops[i],
-                                                                                                             template,
-                                                                                                             num_pairs=20,
-                                                                                                             load_size=img_data.crops[i].size[0])
-                except Exception as e:
-                    logging.error(f"Local correspondence matching failed for {img_data.img_name} and object_id {img_data.obj_ids[i]}: {e}")
-
-
-                try:
-                    img_uv = np.load(templates_gt_new[object_id][int(best_match.replace(".png",""))]['uv_crop'])
-
-                    img_uv = img_uv.astype(np.uint8)
-
-                    img_uv = cv2.resize(img_uv, img_data.crops[i].size)
-
-                    R_est, t_est = utils.get_pose_from_correspondences(points1,
-                                                                    points2,
-                                                                    img_data.y_offsets[i],
-                                                                    img_data.x_offsets[i],
-                                                                    img_uv,
-                                                                    img_data.cam_K,
-                                                                    norm_factors[str(img_data.obj_ids[i])],
-                                                                    config['scale_factor'])
-                except Exception as e:
-                    logger.error(f"Not enough correspondences could be extracted for {img_data.img_name} and object_id {object_id}: {e}")
-                    R_est = None
-
-
-                if R_est is None:
-                    R_est = np.array(templates_gt_new[object_id][int(best_match.replace(".png",""))]['cam_R_m2c']).reshape((3,3))
-                    t_est = np.array([0.,0.,0.])
-
-                end_time = time.time()
-                err, acc = eval_utils.calculate_score(R_est, img_data.R_gts[i], int(img_data.obj_ids[i]), 0)
-
-                if err < min_err:
-                    min_err = err
-                    R_best = R_est
-                    print(R_best)
-                    t_best = t_est
-                    pose_est = True
-
-            if not pose_est:
-                R_best = np.array([[1.0,0.,0.],
-                                [0.,1.0,0.],
-                                [0.,0.,1.0]])
-
-                t_best = np.array([0.,0.,0.])
-                logger.warning(f"No pose could be determined for {img_data.img_name} and object_id {object_id}")
-                score = 0.
-            else:
-                score = 0.
-
-        else:
-            R_best = np.array([[1.0,0.,0.],
-            [0.,1.0,0.],
-            [0.,0.,1.0]])
-
-            t_best = np.array([0.,0.,0.])
-            logger.warning(f"No Pose could be determined for {img_data.img_name} and object_id {object_id} because no object crop available")
-            score = 0.
-
-        # Prepare for writing:
-        R_best_str = " ".join(map(str, R_best.flatten()))
-        t_best_str = " ".join(map(str, t_best * 1000))
-        elapsed_time = end_time-start_time
-        # Write the detections to the CSV file
-
-        # ['scene_id', 'im_id', 'obj_id', 'score', 'R', 't', 'time']
-        with open(csv_file, mode='a', newline='') as csvfile:
-            csv_writer = csv.writer(csvfile)
-            csv_writer.writerow([img_data.scene_id, img_data.img_name, object_id, score, R_best_str, t_best_str, elapsed_time])
-
-
-        if config['debug_imgs']:
-            if i % config['debug_imgs'] == 0:
-                dbg_img = vis_utils.create_debug_image(R_best, t_best, img_data.R_gts[i], img_data.t_gts[i],
-                                                    np.asarray(img_data.img),
-                                                    img_data.cam_K,
-                                                    img_data.model_infos[i],
-                                                    config['scale_factor'],
-                                                    image_shape = (config['image_resolution'][0],config['image_resolution'][1]),
-                                                    colEst=(0,255,0))
-
-                dbg_img = cv2.cvtColor(dbg_img, cv2.COLOR_BGR2RGB)
-
-                if img_data.masks[i] is not None:
-                    dbg_img_mask = cv2.hconcat([dbg_img, img_data.masks[i]])
-                else:
-                    dbg_img_mask = dbg_img
-
-                cv2.imwrite(os.path.join(debug_img_path, f"{img_data.img_name}_{img_data.obj_ids[i]}.png"), dbg_img_mask)
-
-
-                
+        break
