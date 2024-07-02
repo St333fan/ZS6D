@@ -6,7 +6,6 @@ import csv
 with open('/home/stefan/PycharmProjects/ZS6D/gts/test_gts/ycbv_bop_test_gt_sam_myset.json', 'r') as file:
     ground_truth_data = json.load(file)
 
-
 def parse_calculated_data(filename):
     calculated = {}
     with open(filename, 'r') as file:
@@ -29,26 +28,33 @@ def parse_calculated_data(filename):
             }
     return calculated
 
-# Assuming the calculated values are in a file named 'calculated_values.csv'
-calculated_data = parse_calculated_data('/home/stefan/PycharmProjects/ZS6D/results/results_ycbv_bop_myset.csv')
+# Calculated values
+calculated_data = parse_calculated_data('/home/stefan/PycharmProjects/ZS6D/results/results_ycbv_bop_myset_crocom.csv')
 
 '''
-Total Objects: 8
-Detected Objects: 8
-Detection Rate: 1.00
-Average Rotation Error: 2.01 radians
-Average Translation Error: 726.60 units
-BOP AR Score: 0.0000
-Average Processing Time: 0.0935 seconds
+Total Objects: 55
+Detected Objects: 7
+Detection Rate: 0.13
+Average Rotation Error: 2.97 radians
+Average Translation Error: 291.75 mm
+AR Score: 0.0303
+Average Processing Time: 0.0860 seconds
 
-Total Objects: 8
-Detected Objects: 8
-Detection Rate: 1.00
-Average Rotation Error: 1.49 radians
-Average Translation Error: 118.26 units
-BOP AR Score: 0.1667
-Average Processing Time: 26.0074 seconds
+Total Objects: 55
+Detected Objects: 51
+Detection Rate: 0.93
+Average Rotation Error: 1.58 radians
+Average Translation Error: 192.87 mm
+AR Score: 0.1758
+Average Processing Time: 9.1770 seconds
 
+Total Objects: 55
+Detected Objects: 51
+Detection Rate: 0.93
+Average Rotation Error: 1.27 radians
+Average Translation Error: 187.43 mm
+AR Score: 0.2485
+Average Processing Time: 9.4332 seconds
 '''
 
 
@@ -64,7 +70,7 @@ def add_score(error, thresholds):
     return sum([error <= t for t in thresholds]) / len(thresholds)
 
 
-# BOP AR score thresholds
+# AR score thresholds
 visib_gt_min = 0.1
 error_thresh = {
     'n_top': -1,
@@ -126,6 +132,6 @@ print(f"Total Objects: {total_objects}")
 print(f"Detected Objects: {detected_objects}")
 print(f"Detection Rate: {detection_rate:.2f}")
 print(f"Average Rotation Error: {avg_rotation_error:.2f} radians")
-print(f"Average Translation Error: {avg_translation_error:.2f} units")
-print(f"BOP AR Score: {ar_score:.4f}")
+print(f"Average Translation Error: {avg_translation_error:.2f} mm")
+print(f"AR Score: {ar_score:.4f}")
 print(f"Average Processing Time: {avg_processing_time:.4f} seconds")

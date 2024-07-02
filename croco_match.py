@@ -182,7 +182,7 @@ def process_image(model, image_path, ref_image, device, trfs, imagenet_mean_tens
 
     return decoded_image
 
-def process(ref_image_path, ckpt_path, output_folder, assets_folder, mask_array):
+def process(ref_image_path=None, ref_image=None, ckpt_path=None, output_folder=None, assets_folder=None, mask_array=None):
     """
         Process a set of images using a reference image and a pre-trained model.
 
@@ -207,7 +207,10 @@ def process(ref_image_path, ckpt_path, output_folder, assets_folder, mask_array)
     trfs = Compose([ToTensor(), Normalize(mean=imagenet_mean, std=imagenet_std),transforms.Resize((224, 224))])
 
     # Load the reference image
-    ref_image = trfs(Image.open(ref_image_path).convert('RGB')).to(device, non_blocking=True).unsqueeze(0)
+    if ref_image_path != None:
+        ref_image = trfs(Image.open(ref_image_path).convert('RGB')).to(device, non_blocking=True).unsqueeze(0)
+    else:
+        ref_image = trfs(ref_image.convert('RGB')).to(device, non_blocking=True).unsqueeze(0)
 
     # load model
     ckpt = torch.load(ckpt_path, 'cpu')
@@ -228,7 +231,7 @@ def process(ref_image_path, ckpt_path, output_folder, assets_folder, mask_array)
             torchvision.utils.save_image(decoded_image, output_path)
             print(f'Decoded image saved: {output_path}')
 
-def find_match(ref_image_path, decoded_images_dir, mask_array):
+def find_match(ref_image_path=None, ref_image=None, decoded_images_dir=None, mask_array=None):
     """
         Match a reference image with several decoded images
 
@@ -261,13 +264,28 @@ def find_match(ref_image_path, decoded_images_dir, mask_array):
 
     # Expand the mask
     expanded_mask = expand_mask(mask_array, 16)
+
     def measure_quality(img1, img2):
-        # Ensure images are the same size
+        # Convert both images to numpy arrays if they're not already
+        if isinstance(img1, Image.Image):
+            img1 = np.array(img1)
+        if isinstance(img2, Image.Image):
+            img2 = np.array(img2)
+
+        # Ensure both images are in the same color space (assuming BGR for OpenCV)
+        if img1.shape[-1] == 3:
+            img1 = cv2.cvtColor(img1, cv2.COLOR_RGB2BGR)
+        if img2.shape[-1] == 3:
+            img2 = cv2.cvtColor(img2, cv2.COLOR_RGB2BGR)
+
+        # Get dimensions from img2
         h, w = img2.shape[:2]
-        img1 = cv2.resize(img1, (w, h))
+
+        # Resize img1 to match img2
+        img1_resized = cv2.resize(img1, (w, h))
 
         # Convert images to grayscale for SSIM
-        gray1 = cv2.cvtColor(img1, cv2.COLOR_BGR2GRAY)
+        gray1 = cv2.cvtColor(img1_resized, cv2.COLOR_BGR2GRAY)
         gray2 = cv2.cvtColor(img2, cv2.COLOR_BGR2GRAY)
 
         # Calculate SSIM
@@ -276,12 +294,15 @@ def find_match(ref_image_path, decoded_images_dir, mask_array):
                           win_size=min(7, min(gray1.shape) - 1))  # Ensure win_size is odd and smaller than image
 
         # Calculate MSE
-        mse = np.mean((img1 - img2) ** 2)
+        mse = np.mean((img1_resized - img2) ** 2)
 
         return ssim_value, mse
 
     # Load images
-    img1 = cv2.imread(ref_image_path)
+    if ref_image_path!=None:
+        img1 = cv2.imread(ref_image_path)
+    else:
+        img1 = ref_image
 
     top_10 = []
 
