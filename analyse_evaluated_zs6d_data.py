@@ -29,7 +29,7 @@ def parse_calculated_data(filename):
     return calculated
 
 # Calculated values
-calculated_data = parse_calculated_data('/home/stefan/PycharmProjects/ZS6D/results/results_ycbv_bop_myset.csv')
+calculated_data = parse_calculated_data('/home/stefan/PycharmProjects/ZS6D/results/results_ycbv_bop_myset_croco.csv')
 
 '''
 Total Objects: 55
