@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 
 if __name__=="__main__":
     parser = argparse.ArgumentParser(description='Test pose estimation inference on test set')
-    parser.add_argument('--config_file', default="./zs6d_configs/bop_eval_configs/cfg_ycbv_inference_bop_myset_croco.json")
+    parser.add_argument('--config_file', default="./zs6d_configs/bop_eval_configs/cfg_ycbv_inference_bop_myset_crocom.json")
 
     args = parser.parse_args()
 
@@ -68,8 +68,6 @@ if __name__=="__main__":
     extractor = PoseViTExtractor(model_type='dino_vits8', stride=4, device=device)
     print("Loading PoseViTExtractor is done!")
 
-    matches = []
-
     # Loading templates into gpu
     templates_desc = {}
     templates_crops = {}
@@ -87,9 +85,11 @@ if __name__=="__main__":
     print("Processing input images:")
     for all_id, img_labels in tqdm(data_gt.items()):
 
+        matches = []
+
         # enter the image which should be checked
-        if all_id != '000059_1':
-            continue
+        #if all_id != '000059_1':
+        #    continue
 
         scene_id = all_id.split("_")[0]
         img_id = all_id.split("_")[-1]
@@ -167,7 +167,7 @@ if __name__=="__main__":
                     assets_folder = '/home/stefan/PycharmProjects/ZS6D/templates/ycbv_desc/'+'obj_'+ str(img_label['obj_id'])
 
                     # run whole process or manual checking and extracting
-                    if False:
+                    if True:
                         croco_match.process(ref_image=img_crop,
                                             ckpt_path='/home/stefan/PycharmProjects/ZS6D/pretrained_models/CroCo.pth',
                                             # _V2_ViTLarge_BaseDecoder
@@ -191,6 +191,7 @@ if __name__=="__main__":
                     img_data.masks.append(mask_3_channel)
 
                 except Exception as e:
+                    matches.append(all_id + '|' + str(img_label['obj_id']) + '|' + '000000.png')
                     print(f"Warning: 'mask_sam' not found or bad defined in img_label. Skipping this iteration.")
                     logger.warning(f"Loading mask and extracting descriptor failed for img {img_path} and object_id {obj_index}: {e}")
                     img_data.crops.append(None)
