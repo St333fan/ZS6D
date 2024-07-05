@@ -65,6 +65,7 @@ if __name__=="__main__":
         
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
+    # just for using the inbuild functions
     extractor = PoseViTExtractor(model_type='dino_vits8', stride=4, device=device)
     print("Loading PoseViTExtractor is done!")
 
@@ -169,7 +170,7 @@ if __name__=="__main__":
                     # run whole process or manual checking and extracting
                     if True:
                         croco_match.process(ref_image=img_crop,
-                                            ckpt_path='/home/stefan/PycharmProjects/ZS6D/pretrained_models/CroCo.pth',
+                                            ckpt_path='/home/stefan/PycharmProjects/ZS6D/pretrained_models/CroCo_V2_ViTLarge_BaseDecoder.pth',
                                             # _V2_ViTLarge_BaseDecoder
                                             output_folder='/home/stefan/PycharmProjects/ZS6D/assets_match/decoded_images',
                                             assets_folder=assets_folder,
