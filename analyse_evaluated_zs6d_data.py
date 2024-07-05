@@ -29,25 +29,28 @@ def parse_calculated_data(filename):
     return calculated
 
 # Calculated values
-calculated_data = parse_calculated_data('/home/stefan/PycharmProjects/ZS6D/results/results_ycbv_bop_myset_crocom.csv')
+calculated_data = parse_calculated_data('/home/stefan/PycharmProjects/ZS6D/results/results_ycbv_bop_myset_crocomv2.csv')
 
 '''
+Dino
 Total Objects: 55
-Detected Objects: 7
-Detection Rate: 0.13
-Average Rotation Error: 2.97 radians
-Average Translation Error: 291.75 mm
-AR Score: 0.0303
-Average Processing Time: 0.0860 seconds
+Detected Objects: 50
+Detection Rate: 0.91
+Average Rotation Error: 1.63 radians
+Average Translation Error: 161.69 mm
+AR Score: 0.1939
+Average Processing Time: 15.1437 seconds
 
+CroCo
 Total Objects: 55
-Detected Objects: 51
-Detection Rate: 0.93
-Average Rotation Error: 1.58 radians
-Average Translation Error: 192.87 mm
-AR Score: 0.1758
-Average Processing Time: 9.1770 seconds
+Detected Objects: 4
+Detection Rate: 0.07
+Average Rotation Error: 3.07 radians
+Average Translation Error: 344.32 mm
+AR Score: 0.0000
+Average Processing Time: 0.1558 seconds
 
+CroCoM
 Total Objects: 55
 Detected Objects: 51
 Detection Rate: 0.93
@@ -55,6 +58,15 @@ Average Rotation Error: 1.27 radians
 Average Translation Error: 187.43 mm
 AR Score: 0.2485
 Average Processing Time: 9.4332 seconds
+
+CroCoMv2
+Total Objects: 55
+Detected Objects: 50
+Detection Rate: 0.91
+Average Rotation Error: 1.20 radians
+Average Translation Error: 148.66 mm
+AR Score: 0.4030
+Average Processing Time: 9.0493 seconds
 '''
 
 
