@@ -39,6 +39,7 @@ sudo apt-get install libxcb-xinerama0 libxcb-icccm4 libxcb-image0 libxcb-keysyms
 
 ## How to run CroCoM
 - Try to run CroCo first, because it also has some **setup steps** which are needed for **CroCoM**, if you are Pro you can try to go straight to CroCoM and debug on the fly 
+- [templates](templates) **ycbv_desc** needs to be created, so jump to **Overview of the original ZS6D-Dino Project** and process it. We use the cropped masked templates from there
 - In [pretrained_models](pretrained_models) is [crocom.py](pretrained_models%2Fcrocom.py) put it into the folder from the **original corco (subgit)** where **croco.py** is found
 - Start [croco_match.py](croco_match.py) for testing on **single segmented objects**, by changing the paths in the **main** function
 - [evaluate_zs6d_bop_crocom.py](evaluate_zs6d_bop_crocom.py) evaluates on **myset (small ycbv testset)** , check also the files in [bop_eval_configs](zs6d_configs%2Fbop_eval_configs)
@@ -62,10 +63,6 @@ Testing all layers and tokens, on one template and one segmented object
 
 Testing the output of the CroCoDownstreamMonocularEncoder
 - [test_croco_output.py](test_croco_output.py)
-
-
-
-
 
 
 ## Overview of the original ZS6D-Dino Project:

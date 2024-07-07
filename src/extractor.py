@@ -1,6 +1,4 @@
 import argparse
-
-import cv2
 import torch
 import torchvision.transforms
 from torch import nn
@@ -17,8 +15,8 @@ from croco.models.croco_downstream import CroCoDownstreamMonocularEncoder
 from torchvision.transforms import ToTensor, Normalize, Compose
 import numpy as np
 import matplotlib.pyplot as plt
-import torch
 import random
+import torch.nn.functional as F
 
 
 class ViTExtractor:
@@ -345,9 +343,8 @@ class CroCoExtractor:
     def __init__(self, model_type: str = 'crocov1', stride: int = 16, model: nn.Module = None, device: str = 'cuda'):
         """
         :param model_type: A string specifying the type of model to extract from.
-                          [dino_vits8 | dino_vits16 | dino_vitb8 | dino_vitb16 | vit_small_patch8_224 |
-                          vit_small_patch16_224 | vit_base_patch8_224 | vit_base_patch16_224]
-        :param stride: stride of first convolution layer. small stride -> higher resolution.
+                          [crocov1 | crocov2]
+        :param stride: stride of first convolution layer. small stride -> higher resolution. Only for corcov2
         :param model: Optional parameter. The nn.Module to extract from instead of creating a new one in ViTExtractor.
                       should be compatible with model_type.
         """
@@ -358,7 +355,7 @@ class CroCoExtractor:
         else:
             self.model = CroCoExtractor.create_model(model_type)
         '''
-        seed = 33  # found by checking the saliency map
+        seed = 1
         torch.manual_seed(seed)
         torch.cuda.manual_seed(seed)
         torch.cuda.manual_seed_all(seed)
@@ -376,9 +373,8 @@ class CroCoExtractor:
         self.p = self.model.patch_embed.patch_size
         self.stride = self.model.patch_embed.proj.stride
 
-        # adding crocov2 also
-        self.mean = (0.485, 0.456, 0.406) #if "croco" in self.model_type else (0.5, 0.5, 0.5)
-        self.std = (0.229, 0.224, 0.225) #if "croco" in self.model_type else (0.5, 0.5, 0.5)
+        self.mean = (0.485, 0.456, 0.406)
+        self.std = (0.229, 0.224, 0.225)
 
         self._feats = []
         self.hook_handlers = []
@@ -388,14 +384,13 @@ class CroCoExtractor:
     @staticmethod
     def create_model(model_type: str) -> nn.Module:
         """
-        :param model_type: a string specifying which model to load. [dino_vits8 | dino_vits16 | dino_vitb8 |
-                           dino_vitb16 | vit_small_patch8_224 | vit_small_patch16_224 | vit_base_patch8_224 |
-                           vit_base_patch16_224]
+        :param model_type: a string specifying which model to load. [crocov1 | crovo2 | dino]
         :return: the model
         """
+
+        # some compatibility is left with dino, was not checked in the final draft
         if 'dino' in model_type:
             model = torch.hub.load('facebookresearch/dino:main', model_type)
-
             # model = torch.hub.load('facebookresearch/dinov2', 'dinov2_vits14')
         elif 'crocov1' in model_type:
             ckpt = torch.load('./pretrained_models/CroCo.pth')
@@ -473,7 +468,7 @@ class CroCoExtractor:
         :param stride: the new stride parameter.
         :return: the adjusted model
         """
-        patch_size = model.patch_embed.patch_size[0] # changed beacuse batch tuble
+        patch_size = model.patch_embed.patch_size[0]  # changed because batch tuble
         if stride == patch_size:  # nothing to do
             return model
 
@@ -503,13 +498,7 @@ class CroCoExtractor:
         if load_size is not None:
             pil_image = transforms.Resize(load_size, interpolation=transforms.InterpolationMode.LANCZOS)(pil_image)
 
-        #prep = transforms.Compose([
-         #   transforms.ToTensor(),
-         #   transforms.Normalize(mean=self.mean, std=self.std)
-        #])
-        #prep_img = prep(pil_image)[None, ...]
         # Convert the image to a tensor
-
         to_tensor = transforms.ToTensor()
         image_tensor = to_tensor(pil_image)[None, ...]  # Add batch dimension
 
@@ -518,7 +507,7 @@ class CroCoExtractor:
 
         # Normalize the image tensor
         normalize = transforms.Normalize(mean=self.mean, std=self.std)
-        prep_img = padded_and_resized_tensor#normalize(padded_and_resized_tensor)
+        prep_img = padded_and_resized_tensor  #normalize(padded_and_resized_tensor)
 
         return prep_img, pil_image
 
@@ -556,7 +545,7 @@ class CroCoExtractor:
         :param layers: layers from which to extract features.
         :param facet: facet to extract. One of the following options: ['key' | 'query' | 'value' | 'token' | 'attn']
         """
-        for block_idx, block in enumerate(self.model.enc_blocks): # enc_block or dec_block
+        for block_idx, block in enumerate(self.model.enc_blocks):  # enc_block or dec_block
             if block_idx in layers:
                 if facet == 'token':
                     self.hook_handlers.append(block.register_forward_hook(self._get_hook(facet)))
@@ -593,13 +582,13 @@ class CroCoExtractor:
         self._register_hooks(layers, facet)
         with torch.inference_mode():
             if batch2 == None:
-                _ = self.model(batch)#, batch)
+                _ = self.model(batch)  #, batch)
             else:
                 _ = self.model(batch, batch2)
         self._unregister_hooks()
         self.load_size = (H, W)
         self.num_patches = (1 + (H - self.p[0]) // self.stride[0], 1 + (W - self.p[0]) // self.stride[1])
-        #self.num_patches = (1 + (H - self.p) // self.stride[0], 1 + (W - self.p) // self.stride[1])
+        # self.num_patches = (1 + (H - self.p) // self.stride[0], 1 + (W - self.p) // self.stride[1])
         return self._feats
 
     def _log_bin(self, x: torch.Tensor, hierarchy: int = 2) -> torch.Tensor:
@@ -664,9 +653,9 @@ class CroCoExtractor:
         assert facet in ['key', 'query', 'value', 'token', 'attn'], f"""{facet} is not a supported facet for descriptors. 
                                                              choose from ['key' | 'query' | 'value' | 'token'] """
         self._extract_features(batch, batch2=None, layers=[layer], facet=facet)
-        x = self._feats[0]# 1 16 196 31 0--for mono 1--for binocular
+        x = self._feats[0] # 1 16 196 31 0--for mono 1--for binocular
         if facet == 'token':
-            #x.unsqueeze_(dim=1)  # Bx1xtxd
+            # x.unsqueeze_(dim=1)  # Bx1xtxd
             x = x.clone().unsqueeze(dim=1)  # Bx1xtxd
         if not include_cls:
             x = x[:, :, 1:, :]  # remove cls token
@@ -723,10 +712,6 @@ class PassThroughHead(nn.Module):
         # Simply return the features without any modifications
         return x
 
-
-import torch
-import torch.nn.functional as F
-
 def pad_and_resize(image_batch):
     # Get the dimensions of the input image batch
     batch_size, channels, height, width = image_batch.shape
@@ -744,6 +729,7 @@ def pad_and_resize(image_batch):
 
     return resized_image_batch
 
+# should not be called single-minded, needs to be rechecked
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Facilitate ViT Descriptor extraction.')
     parser.add_argument('--image_path', default='/home/stefan/PycharmProjects/ZS6D/test/000248.png', type=str, required=False, help='path of the extracted image.')
@@ -763,7 +749,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # setting a seed so the model does not behave random
-    seed = 33  # found by checking the saliency map
+    seed = 1
     torch.manual_seed(seed)
     torch.cuda.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
@@ -776,7 +762,7 @@ if __name__ == "__main__":
         device = 'cuda' if torch.cuda.is_available() else 'cpu'
         extractor = ViTExtractor(args.model_type, args.stride, device=device)
 
-        extractor_croco = CroCoExtractor(model_type='crocov1', stride=16, device=device) #stride 16
+        extractor_croco = CroCoExtractor(model_type='crocov1', stride=16, device=device)
 
         image_batch, image_pil = extractor.preprocess(args.image_path, args.load_size)
         image_batch_croco1, image_pil_croco = extractor_croco.preprocess('/home/stefan/PycharmProjects/ZS6D/test/maskcutbetter.png', args.load_size)

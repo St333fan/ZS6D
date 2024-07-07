@@ -45,8 +45,7 @@ if __name__=="__main__":
     with open(os.path.join(config['norm_factor_path']), 'r') as f:
         norm_factors = json.load(f)
 
-
-    #Set up a results csv file:
+    # Set up a results csv file:
     csv_file = os.path.join('./results', config['results_file'])
 
     # Column names for the CSV file

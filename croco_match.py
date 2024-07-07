@@ -148,21 +148,21 @@ def process_image(model, image_path, ref_image, device, trfs, imagenet_mean_tens
     This function loads an image, applies transformations, runs it through a model along with a reference image,
     decodes the output, and calculates the similarity between the decoded image and the input image.
 
-    Parameters:
-    model (torch.nn.Module): The neural network model to use for processing.
-    image_path (str): Path to the image file to be processed.
-    ref_image (torch.Tensor): The reference image tensor.
-    device (torch.device): The device (CPU or GPU) to run the computations on.
-    trfs (torchvision.transforms.Compose): Composition of image transformations to apply.
-    imagenet_mean_tensor (torch.Tensor): Mean tensor for ImageNet normalization.
-    imagenet_std_tensor (torch.Tensor): Standard deviation tensor for ImageNet normalization.
-    mask_array (numpy.ndarray): Array used to create a custom mask.
+    Args:
+    model: torch.nn.Module, The neural network model to use for processing.
+    image_path: str, Path to the image file to be processed.
+    ref_image: torch.Tensor, The reference image tensor.
+    device: torch.device, The device (CPU or GPU) to run the computations on.
+    trfs: torchvision.transforms.Compose, Composition of image transformations to apply.
+    imagenet_mean_tensor: torch.Tensor, Mean tensor for ImageNet normalization.
+    imagenet_std_tensor: torch.Tensor, Standard deviation tensor for ImageNet normalization.
+    mask_array: numpy.ndarray, Array used to create a custom mask.
 
     Returns:
     torch.Tensor: The decoded image tensor.
     """
-    image1 = ref_image
-    image2 = trfs(Image.open(image_path).convert('RGB')).to(device, non_blocking=True).unsqueeze(0)
+    image1 = ref_image  # segmented object
+    image2 = trfs(Image.open(image_path).convert('RGB')).to(device, non_blocking=True).unsqueeze(0)  # template image
 
     custom_mask = create_custom_mask(mask_array)
 
@@ -189,14 +189,14 @@ def process(ref_image_path=None, ref_image=None, ckpt_path=None, output_folder=N
         This function sets up the environment, loads a model and a reference image,
         and then processes all images in a specified folder, saving the decoded results.
 
-        Parameters:
-        ref_image_path (str): Path to the reference image file.
-        ckpt_path (str): Path to the checkpoint file containing the pre-trained model.
-        output_folder (str): Path to the folder where decoded images will be saved.
-        assets_folder (str): Path to the folder containing images to be processed.
+        Args:
+        ref_image_path: str, Path to the reference image file.
+        ckpt_path: str, Path to the checkpoint file containing the pre-trained model.
+        output_folder: str, Path to the folder where decoded images will be saved.
+        assets_folder: str, Path to the folder containing images to be processed.
 
         Returns:
-        None
+        None, saves images is folder, should be adapted in the future to save them in the RAM
     """
     device = torch.device('cuda:0' if torch.cuda.is_available() and torch.cuda.device_count() > 0 else 'cpu')
 
@@ -236,12 +236,12 @@ def find_match(ref_image_path=None, ref_image=None, decoded_images_dir=None, mas
         Match a reference image with several decoded images
 
         Args:
-        ref_image_path: String, path to the reference image file
-        decoded_images_dir: String, path to the decoded image files
+        ref_image_path: str, path to the reference image file
+        decoded_images_dir: str, path to the decoded image files
         mask_array: np.Array, used mask
 
         Returns:
-        String: Name of best matched image
+        str: Name of best matched image
     """
     def expand_mask(mask_array, patch_size):
         # Convert mask array to numpy array
@@ -380,10 +380,10 @@ def main():
     # output_folder: use ./ZS6D/assets_match/decoded_images
     # assets_folder: where all the dataset iamges are located
     # mask_array: the mask
-    process(ref_image_path='/test/test_crocom/3.png',
-            ckpt_path='/home/stefan/PycharmProjects/ZS6D/pretrained_models/CroCo.pth',  #_V2_ViTLarge_BaseDecoder
-            output_folder='/home/stefan/PycharmProjects/ZS6D/assets_match/decoded_images',
-            assets_folder='/home/stefan/PycharmProjects/ZS6D/assets_match', mask_array=mask_array)
+    process(ref_image_path='./test/test_crocom/3.png',
+            ckpt_path='./pretrained_models/CroCo.pth',  #_V2_ViTLarge_BaseDecoder
+            output_folder='./assets_match/decoded_images',
+            assets_folder='./templates/ycbv_desc/obj_15', mask_array=mask_array)
 
     # ref_iamge_path: the segemented object
     # ref: use ./ZS6D/assets_match/decoded_images in future should be hold in RAM

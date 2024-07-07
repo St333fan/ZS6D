@@ -36,7 +36,6 @@ if __name__=="__main__":
         config = json.load(f)
     
     # Loading ground truth files:
-
     with open(os.path.join(config['templates_gt_path']), 'r') as f:
         templates_gt = json.load(f)
     
@@ -47,7 +46,7 @@ if __name__=="__main__":
         norm_factors = json.load(f)
 
 
-    #Set up a results csv file:
+    # Set up a results csv file:
     csv_file = os.path.join('./results', config['results_file'])
 
     # Column names for the CSV file
@@ -88,7 +87,7 @@ if __name__=="__main__":
 
         matches = []
 
-        # enter the image which should be checked
+        # enter the image which should be checked, manuall checking here
         #if all_id != '000059_1':
         #    continue
 
@@ -217,7 +216,7 @@ if __name__=="__main__":
                 print(f"Warning: No match available for crop {i}")
                 continue
 
-            best_temp = Image.open(f'/home/stefan/PycharmProjects/ZS6D/templates/ycbv_desc/obj_{obj_id}/{best_match}')
+            best_temp = Image.open(f'./templates/ycbv_desc/obj_{obj_id}/{best_match}')
 
             if img_data.crops[i] is not None:
                 min_err = np.inf

@@ -31,6 +31,7 @@ def parse_calculated_data(filename):
 # Calculated values
 calculated_data = parse_calculated_data('./results/results_ycbv_bop_myset_crocomv2.csv')
 
+# Output from our testing
 '''
 Dino
 Total Objects: 55
@@ -69,7 +70,6 @@ AR Score: 0.4030
 Average Processing Time: 9.0493 seconds
 '''
 
-
 def rotation_error(R1, R2):
     return np.arccos((np.trace(R1.T @ R2) - 1) / 2)
 
@@ -79,6 +79,7 @@ def translation_error(t1, t2):
 
 
 def add_score(error, thresholds):
+    # stepped scoring system
     return sum([error <= t for t in thresholds]) / len(thresholds)
 
 
@@ -86,7 +87,7 @@ def add_score(error, thresholds):
 visib_gt_min = 0.1
 error_thresh = {
     'n_top': -1,
-    'vis_fract_th': 0.0,
+    'vis_fract_th': 0.0,  # currently not in use
     'err_thresh': [0.05, 0.10, 0.15, 0.20, 0.25, 0.30],
 }
 
@@ -128,7 +129,7 @@ for scene_key, objects in ground_truth_data.items():
                     ar_score = add_score(normalized_error, error_thresh['err_thresh'])
                     ar_scores.append(ar_score)
             else:
-                # Object not found, consider it as maximum error
+                # Object not found, considered as maximum error
                 rotation_errors.append(np.pi)  # Maximum rotation error
                 translation_errors.append(np.inf)  # Maximum translation error
                 if obj['visib_fract'] >= visib_gt_min:
@@ -146,4 +147,5 @@ print(f"Detection Rate: {detection_rate:.2f}")
 print(f"Average Rotation Error: {avg_rotation_error:.2f} radians")
 print(f"Average Translation Error: {avg_translation_error:.2f} mm")
 print(f"AR Score: {ar_score:.4f}")
+# cant be judged all too well
 print(f"Average Processing Time: {avg_processing_time:.4f} seconds")

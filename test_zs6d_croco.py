@@ -13,7 +13,7 @@ import random
 sys.path.append("croco")
 
 # setting a seed so the model does not behave random
-seed = 1  # found by checking the saliency map
+seed = 1
 torch.manual_seed(seed)
 torch.cuda.manual_seed(seed)
 torch.cuda.manual_seed_all(seed)
