@@ -8,7 +8,7 @@ matplotlib.use('TkAgg')  # Use TkAgg backend
 import matplotlib.pyplot as plt
 
 # setting a seed so the model does not behave random
-seed = 3# found by checking the saliency map 33
+seed = 1
 torch.manual_seed(seed)
 torch.cuda.manual_seed(seed)
 torch.cuda.manual_seed_all(seed)
@@ -19,14 +19,13 @@ torch.backends.cudnn.benchmark = False
 
 with torch.no_grad():
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    extractor_croco = CroCoExtractor(model_type='crocov1', stride=16, device=device)  # stride 16
-    #extractor_croco = ViTExtractor(device=device)
+    extractor_croco = CroCoExtractor(model_type='crocov1', stride=16, device=device)
+    # extractor_croco = ViTExtractor(device=device)
     image_batch_croco1, image_pil_croco = extractor_croco.preprocess(
-        '/home/stefan/Desktop/000347.png', 224)#, mask=False) #000248.png
-    #image_batch_croco1, image_pil_croco = extractor_croco.preprocess(
-      #  '/home/stefan/PycharmProjects/ZS6D/test/000392.png', 224, mask=False)  # 000248.png
+        '/home/stefan/Desktop/000347.png', 224)
     image_batch_croco2, image_pil_croco2 = extractor_croco.preprocess(
-        '/home/stefan/Desktop/bechertest1.png', 224)#, mask=False)#000392.png
+        '/home/stefan/Desktop/bechertest1.png', 224)
+
     # Remove the batch dimension and move channels to the end
     image_array = image_batch_croco1.squeeze(0).permute(1, 2, 0).numpy()
 
@@ -56,28 +55,24 @@ with torch.no_grad():
             norm_tensor1 = torch.norm(descriptors1_2d, dim=1)
             norm_tensor2 = torch.norm(descriptors2_2d, dim=1)
 
-            # Save the channel as a grayscale image
+            # Save the descs as images
             plt.imsave('descriptor1.png', descriptors1_2d)
             plt.imsave('descriptor2.png', descriptors2_2d)
 
             # cosine similarity
             cosine_similarity.append(dot_product / (norm_tensor1 * norm_tensor2))
-            import torch.nn.functional as F
 
             # mean cosine similarity
             mean_cosine_similarity.append(torch.mean(dot_product / (norm_tensor1 * norm_tensor2)))
 
-        # Create a range for the x-axis (from 0 to 10)
+        # range x-axis (from 0 to 11)
         x_values = range(12)
         print(mean_cosine_similarity)
-        # Create the line plot
         plt.plot(x_values, mean_cosine_similarity, label=facet.capitalize())
-
-        # Add labels and title
         plt.xlabel('Index')
         plt.ylabel('Value')
         plt.title('Line Plot of Values')
 
-    # Save the plot as a PNG image
+    # Save the plot
     plt.legend()
-    plt.savefig('line_plot3.png')
+    plt.savefig('line_plot.png')

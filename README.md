@@ -12,6 +12,7 @@ template matching building on the self-supervised training method. Cross view co
 templates with each other to find the best match for the segmented to-be-found object in 6D by using the reconstruction task of CroCo.
 
 ## How to install Git for CroCo and CroCoM 
+- We used BOP-YCBV 
 - Please go to the section "Overview of the original ZS6D-Dino Project" and follow the installation process from there.
 - If you are on Ubuntu 22.04, there will be an error, to solve it go to https://stackoverflow.com/questions/72110384/libgl-error-mesa-loader-failed-to-open-iris
 - When Cv2 makes problems
@@ -40,7 +41,7 @@ sudo apt-get install libxcb-xinerama0 libxcb-icccm4 libxcb-image0 libxcb-keysyms
 - Try to run CroCo first, because it also has some **setup steps** which are needed for **CroCoM**, if you are Pro you can try to go straight to CroCoM and debug on the fly 
 - In [pretrained_models](pretrained_models) is [crocom.py](pretrained_models%2Fcrocom.py) put it into the folder from the **original corco (subgit)** where **croco.py** is found
 - Start [croco_match.py](croco_match.py) for testing on **single segmented objects**, by changing the paths in the **main** function
-- [evaluate_zs6d_bop_crocom.py](evaluate_zs6d_bop_crocom.py) evaluates on **myset (small ybvc testset)** , check also the files in [bop_eval_configs](zs6d_configs%2Fbop_eval_configs)
+- [evaluate_zs6d_bop_crocom.py](evaluate_zs6d_bop_crocom.py) evaluates on **myset (small ycbv testset)** , check also the files in [bop_eval_configs](zs6d_configs%2Fbop_eval_configs)
 - Analyse the created evaluation data with [analyse_evaluated_zs6d_data.py](analyse_evaluated_zs6d_data.py)
 ```
 # change the codeline to the created evaluation data depending on what model/pipeline you have evaluated

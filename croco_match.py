@@ -272,19 +272,14 @@ def find_match(ref_image_path=None, ref_image=None, decoded_images_dir=None, mas
         if isinstance(img2, Image.Image):
             img2 = np.array(img2)
 
-        # Ensure both images are in the same color space (assuming BGR for OpenCV)
+        # Ensure both images are in the same color space
         if img1.shape[-1] == 3:
             img1 = cv2.cvtColor(img1, cv2.COLOR_RGB2BGR)
         if img2.shape[-1] == 3:
             img2 = cv2.cvtColor(img2, cv2.COLOR_RGB2BGR)
 
-        # Get dimensions from img2
         h, w = img2.shape[:2]
-
-        # Resize img1 to match img2
         img1_resized = cv2.resize(img1, (w, h))
-
-        # Convert images to grayscale for SSIM
         gray1 = cv2.cvtColor(img1_resized, cv2.COLOR_BGR2GRAY)
         gray2 = cv2.cvtColor(img2, cv2.COLOR_BGR2GRAY)
 
@@ -322,7 +317,7 @@ def find_match(ref_image_path=None, ref_image=None, decoded_images_dir=None, mas
             print(f"SSIM: {ssim_value:.4f}")
             print(f"MSE: {mse:.4f}")
 
-            # Use a max heap to keep track of the top 10 matches
+            # max heap to keep track of the top 10 matches
             if len(top_10) < 10:
                 heappush(top_10, (-mse, filename))
             elif -mse > top_10[0][0]:
@@ -331,16 +326,15 @@ def find_match(ref_image_path=None, ref_image=None, decoded_images_dir=None, mas
     # Sort the results by MSE (ascending order)
     top_10.sort(key=lambda x: -x[0])
 
-    # Print results
     print("\nTop 10 matches:")
     for i, (neg_mse, filename) in enumerate(top_10, 1):
         print(f"{i}. {filename} (MSE: {-neg_mse:.4f})")
 
-    # Return the name of the best match
     return top_10[0][1]
 
 def main():
     start_time = time.time()
+
     # Alternative masks
     if False:
         image_size = 224
@@ -381,13 +375,22 @@ def main():
         [1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1]
     ]
 
-    process('/home/stefan/PycharmProjects/ZS6D/test/drill/3.png',
-                     '/home/stefan/PycharmProjects/ZS6D/pretrained_models/CroCo.pth',#_V2_ViTLarge_BaseDecoder
-                     '/home/stefan/PycharmProjects/ZS6D/assets_match/decoded_images',
-                    '/home/stefan/PycharmProjects/ZS6D/assets_match', mask_array)
+    # ref_iamge_path: the segemented object
+    # ckpt_path: ViT weights
+    # output_folder: use ./ZS6D/assets_match/decoded_images
+    # assets_folder: where all the dataset iamges are located
+    # mask_array: the mask
+    process(ref_image_path='/test/test_crocom/3.png',
+            ckpt_path='/home/stefan/PycharmProjects/ZS6D/pretrained_models/CroCo.pth',  #_V2_ViTLarge_BaseDecoder
+            output_folder='/home/stefan/PycharmProjects/ZS6D/assets_match/decoded_images',
+            assets_folder='/home/stefan/PycharmProjects/ZS6D/assets_match', mask_array=mask_array)
 
-    best_match = find_match('/home/stefan/PycharmProjects/ZS6D/test/drill/3.png',
-                             '/home/stefan/PycharmProjects/ZS6D/assets_match/decoded_images', mask_array)
+    # ref_iamge_path: the segemented object
+    # ref: use ./ZS6D/assets_match/decoded_images in future should be hold in RAM
+    # mask_array: the mask
+    best_match = find_match(ref_image_path='/test/test_crocom/3.png',
+                            decoded_images_dir='/home/stefan/PycharmProjects/ZS6D/assets_match/decoded_images',
+                            mask_array=mask_array)
 
     print(f"The image with the lowest MSE is: {best_match}")
 

@@ -16,7 +16,7 @@ with open(os.path.join("./zs6d_configs/bop_eval_configs/cfg_ycbv_inference_bop.j
 
 # Instantiating the pose estimator:
 # This involves handing over the path to the templates_gt file and the corresponding object norm_factors.
-pose_estimator = ZS6D(config['templates_gt_path'], config['norm_factor_path'], model_type='dino_vits8', subset_templates=5, max_crop_size=80, stride=4)
+pose_estimator = ZS6D(config['templates_gt_path'], config['norm_factor_path'], model_type='dino_vits8', subset_templates=1, max_crop_size=80, stride=4)
 
 # Loading a ground truth file to access segmentation masks to test zs6d:
 with open(os.path.join(config['gt_path']), 'r') as f:
@@ -33,7 +33,7 @@ for i in range(len(data_gt[img_id])):
 
     img_path = os.path.join(config['dataset_path'], data_gt[img_id][obj_number]['img_name'].split("./")[-1])
 
-    img = Image.open('/home/stefan/PycharmProjects/ZS6D/test/000001.png')
+    img = Image.open('./test/000001.png')
 
     mask = data_gt[img_id][obj_number]['mask_sam']
     mask = img_utils.rle_to_mask(mask)

@@ -10,9 +10,6 @@ import numpy as np
 import time
 from external.kmeans_pytorch.kmeans_pytorch import kmeans
 
-
-
-
 class PoseViTExtractor(extractor.ViTExtractor):
 
     def __init__(self, model_type: str = 'dino_vits8', stride: int = 4, model: nn.Module = None, device: str = 'cuda'):

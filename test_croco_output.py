@@ -7,9 +7,10 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from croco.models.croco import CroCoNet
 from croco.models.croco_downstream import CroCoDownstreamMonocularEncoder
+from torch import nn
 
 # setting a seed so the model does not behave random
-seed = 1  # found by checking the saliency map 33
+seed = 1
 torch.manual_seed(seed)
 torch.cuda.manual_seed(seed)
 torch.cuda.manual_seed_all(seed)
@@ -20,16 +21,15 @@ torch.backends.cudnn.benchmark = False
 
 with torch.no_grad():
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    extractor_croco = CroCoExtractor(model_type='crocov1', stride=16, device=device)  # stride 16
-    #extractor_croco = ViTExtractor(device=device)
+    extractor_croco = CroCoExtractor(model_type='crocov1', stride=16, device=device)
+    # extractor_croco = ViTExtractor(device=device)
     image_batch_croco1, image_pil_croco = extractor_croco.preprocess(
-        '/home/stefan/Documents/ycbv_desc_enc_11_nobin_nocls/obj_6/000632.png', 224) #000248.png
+        '/home/stefan/Documents/ycbv_desc_enc_11_nobin_nocls/obj_6/000632.png', 224)
     image_batch_croco1, image_pil_croco = extractor_croco.preprocess(
-        '/home/stefan/Desktop/trash_dose.png', 224)  # 000248.png
+        '/home/stefan/Desktop/trash_dose.png', 224)
     image_batch_croco2, image_pil_croco2 = extractor_croco.preprocess(
-        '/home/stefan/Desktop/cut_dose.png', 224,)#000392.png
-    image_pil_croco2.save('ddddddddd.png')
-
+        '/home/stefan/Desktop/cut_dose.png', 224,)
+    image_pil_croco2.save('img2.png')
 
     def extract_descriptor(model, image):
         with torch.no_grad():
@@ -37,8 +37,6 @@ with torch.no_grad():
 
         return features.mean(dim=1)  # Average over patches to get a single vector per image
 
-
-    from torch import nn
     class PassThroughHead(nn.Module):
         def __init__(self):
             super(PassThroughHead, self).__init__()
@@ -50,7 +48,7 @@ with torch.no_grad():
             # Simply return the features without any modifications
             return x
 
-    ckpt = torch.load('/home/stefan/PycharmProjects/ZS6D/pretrained_models/CroCo_V2_ViTLarge_BaseDecoder.pth')
+    ckpt = torch.load('./pretrained_models/CroCo_V2_ViTLarge_BaseDecoder.pth')
     head = PassThroughHead()
     model = CroCoDownstreamMonocularEncoder(**ckpt.get('croco_kwargs', {}), head=head, mask_ratio=0)
     desc1 = extract_descriptor(model, image_batch_croco1)

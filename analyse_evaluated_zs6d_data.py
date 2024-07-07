@@ -3,7 +3,7 @@ import numpy as np
 import csv
 
 # Load the ground truth data from the JSON file
-with open('/home/stefan/PycharmProjects/ZS6D/gts/test_gts/ycbv_bop_test_gt_sam_myset.json', 'r') as file:
+with open('./gts/test_gts/ycbv_bop_test_gt_sam_myset.json', 'r') as file:
     ground_truth_data = json.load(file)
 
 def parse_calculated_data(filename):
@@ -29,7 +29,7 @@ def parse_calculated_data(filename):
     return calculated
 
 # Calculated values
-calculated_data = parse_calculated_data('/home/stefan/PycharmProjects/ZS6D/results/results_ycbv_bop_myset_crocomv2.csv')
+calculated_data = parse_calculated_data('./results/results_ycbv_bop_myset_crocomv2.csv')
 
 '''
 Dino

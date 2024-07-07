@@ -342,7 +342,7 @@ class CroCoExtractor:
     d - the embedding dimension in the ViT.
     """
 
-    def __init__(self, model_type: str = 'dino_vits8', stride: int = 16, model: nn.Module = None, device: str = 'cuda'):
+    def __init__(self, model_type: str = 'crocov1', stride: int = 16, model: nn.Module = None, device: str = 'cuda'):
         """
         :param model_type: A string specifying the type of model to extract from.
                           [dino_vits8 | dino_vits16 | dino_vitb8 | dino_vitb16 | vit_small_patch8_224 |
@@ -398,7 +398,7 @@ class CroCoExtractor:
 
             # model = torch.hub.load('facebookresearch/dinov2', 'dinov2_vits14')
         elif 'crocov1' in model_type:
-            ckpt = torch.load('/home/stefan/PycharmProjects/ZS6D/pretrained_models/CroCo.pth')
+            ckpt = torch.load('./pretrained_models/CroCo.pth')
             if True:
                 head = PassThroughHead()
                 model = CroCoDownstreamMonocularEncoder(**ckpt.get('croco_kwargs', {}),head=head, mask_ratio=0)
@@ -406,7 +406,7 @@ class CroCoExtractor:
                 model = CroCoNet(**ckpt.get('croco_kwargs', {}), mask_ratio=0)
 
         elif 'crocov2' in model_type:
-            ckpt = torch.load('/home/stefan/PycharmProjects/ZS6D/pretrained_models/CroCo_V2_ViTLarge_BaseDecoder.pth')
+            ckpt = torch.load('./pretrained_models/CroCo_V2_ViTLarge_BaseDecoder.pth')
             if True:
                 head = PassThroughHead()
                 model = CroCoDownstreamMonocularEncoder(**ckpt.get('croco_kwargs', {}),head=head, mask_ratio=0)
@@ -741,26 +741,7 @@ def pad_and_resize(image_batch):
 
     # Resize the padded image to 224x224 using bilinear interpolation
     resized_image_batch = torch.nn.functional.interpolate(padded_image_batch, size=(224, 224), mode='bilinear', align_corners=False)
-    # assume 'tensor' is your image tensor with shape (1, 3, 224, 224)
-    '''
-    # Convert the PyTorch tensor to a NumPy array
-    # Ensure the tensor is on the CPU before converting
-    image_numpy = resized_image_batch.cpu().numpy()
 
-    # Remove the batch dimension
-    image_numpy = image_numpy[0]
-
-    # Transpose the dimensions to (224, 224, 3)
-    image_numpy = np.transpose(image_numpy, (1, 2, 0))
-
-    # Clip the values to [0, 1] range, if necessary
-    image_numpy = np.clip(image_numpy, 0, 1)
-
-    # Convert to 8-bit per channel (0-255) and save as PNG
-    image_numpy = (image_numpy * 255).astype(np.uint8)
-    image = Image.fromarray(image_numpy)
-    image.save('image_float.png')
-    '''
     return resized_image_batch
 
 if __name__ == "__main__":
