@@ -13,6 +13,7 @@ import cv2
 import pose_utils.utils as utils
 import logging
 from src.pose_extractor import PoseViTExtractor, PoseCroCoExtractor
+import random
 
 class ZS6D:
 
@@ -68,12 +69,6 @@ class ZS6D:
         img_crop, y_offset, x_offset = img_utils.make_quadratic_crop(np.array(img), bbox)
         mask_crop, _, _ = img_utils.make_quadratic_crop(mask, bbox)
         img_crop = cv2.bitwise_and(img_crop, img_crop, mask=mask_crop)
-
-        import random
-        #filename = f"img_crop_{random.randint(0, 1000)}.png"
-        #img_crop = cv2.cvtColor(img_crop, cv2.COLOR_BGR2RGB)  # Convert to RGB
-        #cv2.imwrite(filename, img_crop)
-
         img_crop = Image.fromarray(img_crop)
         img_prep, _, _ = self.extractor.preprocess(img_crop, load_size=224)
 
@@ -84,12 +79,10 @@ class ZS6D:
                 desc = desc.squeeze(0).squeeze(0).detach().cpu()
         elif self.model_type != 'crocov1':
             with torch.no_grad():
-                desc = self.extractor.extract_descriptors(img_prep.to(self.device), layer=11, facet='attn',
+                desc = self.extractor.extract_descriptors(img_prep.to(self.device), layer=5, facet='key',
                                                           bin=False, include_cls=True)
                 desc = desc.squeeze(0).squeeze(0).detach().cpu()
         else:
-            #img_prep = torch.nn.functional.interpolate(img_prep, size=(224, 224), mode='bilinear',
-            #                                                    align_corners=False)
             with torch.no_grad():
                 desc = self.extractor.extract_descriptors(img_prep.to(self.device), layer=5, facet='key',
                                                           bin=False, include_cls=True)
@@ -102,7 +95,7 @@ class ZS6D:
 
         template = Image.open(self.templates_gt[obj_id][matched_templates[0][1]]['img_crop'])
 
-        template.save(f'/home/stefan/PycharmProjects/ZS6D/template_{random.randint(0, 1000)}.jpg')
+        template.save(f'./template_{random.randint(0, 1000)}.jpg')
         #filename = f"template_{random.randint(0, 1000)}.png"
         #cv2.imwrite(filename, template)
         plt.imshow(template)

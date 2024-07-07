@@ -10,16 +10,6 @@ import numpy as np
 import torch
 
 def replace_background(input_image, bg_color=(0, 255, 0)):
-    """
-    Replace the black background of an image with a specified color.
-
-    Args:
-    input_image (PIL.Image.Image): Input PIL Image object.
-    bg_color (tuple): RGB color for the new background, default is red (255, 0, 0).
-
-    Returns:
-    PIL.Image.Image: Processed image with the new background.
-    """
     # Convert the image to RGBA if it's not already
     img = input_image.convert('RGBA')
 
@@ -39,9 +29,8 @@ def replace_background(input_image, bg_color=(0, 255, 0)):
     # Convert back to PIL Image and return
     return Image.fromarray(result_array)
 
-
 # setting a seed so the model does not behave random
-seed = 3  # found by checking the saliency map 33
+seed = 1
 torch.manual_seed(seed)
 torch.cuda.manual_seed(seed)
 torch.cuda.manual_seed_all(seed)
@@ -56,13 +45,16 @@ with torch.no_grad():
     strings = ['key', 'attn']
     layer = 2
 
+    # path to all objects
     folder_path = '/home/stefan/Documents/ycbv_desc_enc_11_nobin_nocls/obj_6'
     png_files = [f for f in os.listdir(folder_path) if f.endswith('.png')]
     results = defaultdict(list)
-
     extractor_croco = CroCoExtractor(model_type='crocov1', stride=16, device=device)
+
+    # segmemented object
     image_batch_croco2, image_pil_croco2 = extractor_croco.preprocess(
         '/home/stefan/PycharmProjects/ZS6D/img_crop_647.png', 224)
+
     # Loop over the .png files
     for png_file in png_files:
         file_path = folder_path + '/' + png_file

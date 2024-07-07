@@ -1,4 +1,4 @@
-# ZS6D with added CroCo support and new pipeline for Template Matching
+# ZS6D with added CroCo support and Cross Completion Match (CroCoM)
 
 
 ![dino_croco](./assets/Robot_Vision_CroCo_Dino.png)
@@ -7,21 +7,75 @@ Dino vs CroCo (Cross View Completion, self-supervised pre-trained ViT)
 
 ![cpipeline](./assets/croco_pipeline.png)
 
-After coming to the conclusion that Dino is superior to CroCo in descriptor matching, a new pipeline is proposed for
-template matching building on the self-supervised training method. Cross view completion allows us to compare our
-templates with each other to find the best match for the segmented to-be-found object in 6D.
+After coming to the conclusion that Dino is superior to CroCo in descriptor matching, a new pipeline Cross Completion Match (CroCoM) is proposed for
+template matching building on the self-supervised training method. Cross view completion allows us to compare all
+templates with each other to find the best match for the segmented to-be-found object in 6D by using the reconstruction task of CroCo.
 
-<p align="center">
-  <img src="./assets/overview.png" width="500" alt="teaser"/>
-</p>
+Paper is here --> [From_DINO_over_CroCo_to_CroCoM_Paper.pdf](assets%2FFrom_DINO_over_CroCo_to_CroCoM_Paper.pdf)
 
-We demonstrate the effectiveness of deep features extracted from self-supervised, pre-trained Vision Transformer (ViT) for Zero-shot 6D pose estimation. For more detailed information check out the corresponding [[paper](https://arxiv.org/pdf/2309.11986.pdf)].
+## How to install Git for CroCo and CroCoM 
+- We used BOP-YCBV 
+- Please go to the section "Overview of the original ZS6D-Dino Project" and follow the installation process from there.
+- If you are on Ubuntu 22.04, there will be an error, to solve it go to https://stackoverflow.com/questions/72110384/libgl-error-mesa-loader-failed-to-open-iris
+- When Cv2 makes problems
+```
+sudo apt-get install libxcb-xinerama0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-shape0 libxcb-xfixes0 libxcb-xkb1
+```
+- If your graphics card has less than 32 GByte VRAM create 32 GByte swap-memory, we tested it with 16GBVRAM and 32GBSWAP
 
-## Overview of the Pipeline:
+## How to run ZS6D with CroCo 
+- **General rule, you will run into several PATH issues! I mentioned the most important ones!**
+- Download **CroCo.pth** and **CroCo_V2_ViTLarge_BaseDecoder.pth** from the original croco git and put them into [pretrained_models](pretrained_models)
+- Change import statements in the croco (subgit), there should be 4, your IDE will mark it either way
+- [prepare_templates_and_gt_croco.py](prepare_templates_and_gt_croco.py) prepares the croco descriptors, if you want to run it change the paths to your dataset in [cfg_template_gt_generation_ycbv_croco.json](zs6d_configs%2Ftemplate_gt_preparation_configs%2Fcfg_template_gt_generation_ycbv_croco.json)
+- [bop_eval_configs](zs6d_configs%2Fbop_eval_configs) check all the paths in the **.json files**
+- [test_zs6d_croco.py](test_zs6d_croco.py) is the test script, if you run it, it will probably find no pose because it seems that CroCo does not work in the ZS6D pipeline
+- To test with **CroCo_V2_ViTLarge_BaseDecoder** just exchange it in the function call with **crocov2**
+---
+- evaluation is done with [evaluate_zs6d_bop_croco.py](evaluate_zs6d_bop_croco.py), check also the files in [bop_eval_configs](zs6d_configs%2Fbop_eval_configs)
+- analyse the created evaluation data with [analyse_evaluated_zs6d_data.py](analyse_evaluated_zs6d_data.py)
+```
+# change the codeline to the created evaluation data depending on what model/pipeline you have evaluated
+(calculated_data = parse_calculated_data('./results/results_ycbv_bop_myset_croco.csv'))
+```
+
+## How to run CroCoM
+- Try to run CroCo first, because it also has some **setup steps** which are needed for **CroCoM**, if you are Pro you can try to go straight to CroCoM and debug on the fly 
+- [templates](templates) **ycbv_desc** needs to be created, so jump to **Overview of the original ZS6D-Dino Project** and process it. We use the cropped masked templates from there
+- In [pretrained_models](pretrained_models) is [crocom.py](pretrained_models%2Fcrocom.py) put it into the folder from the **original corco (subgit)** where **croco.py** is found
+- Start [croco_match.py](croco_match.py) for testing on **single segmented objects**, by changing the paths in the **main** function
+- [evaluate_zs6d_bop_crocom.py](evaluate_zs6d_bop_crocom.py) evaluates on **myset (small ycbv testset)** , check also the files in [bop_eval_configs](zs6d_configs%2Fbop_eval_configs)
+- Analyse the created evaluation data with [analyse_evaluated_zs6d_data.py](analyse_evaluated_zs6d_data.py)
+```
+# change the codeline to the created evaluation data depending on what model/pipeline you have evaluated
+(calculated_data = parse_calculated_data('./results/results_ycbv_bop_myset_crocomv2.csv'))
+```
+- **There is currently no implementation for CroCoM in test_zs6d_crocom.py it does not exist!**
+
+## For what are the additional Scripts?
+**No working paths are guaranteed! Personal testing Scripts!**
+
+Testing a specific layer and token, to find the best matches of the templates to segmented object
+- [test_croco_layer_against_all.py](test_croco_layer_against_all.py)
+
+
+Testing all layers and tokens, on one template and one segmented object
+- [test_croco_layers.py](test_croco_layers.py)
+
+
+Testing the output of the CroCoDownstreamMonocularEncoder
+- [test_croco_output.py](test_croco_output.py)
+
+
+## Overview of the original ZS6D-Dino Project:
 
 ![pipeline](./assets/ZS6D_pipeline.png)
 
 Note that this repo only deals with 6D pose estimation, you need segmentation masks as input. These can be obtained with supervised trained methods or zero-shot methods. For zero-shot we refer to [cnos](https://github.com/nv-nguyen/cnos).
+<p align="center">
+  <img src="./assets/overview.png" width="500" alt="teaser"/>
+</p>
+We demonstrate the effectiveness of deep features extracted from self-supervised, pre-trained Vision Transformer (ViT) for Zero-shot 6D pose estimation. For more detailed information check out the corresponding [[paper](https://arxiv.org/pdf/2309.11986.pdf)].
 
 ## Installation:
 To setup the environment to run the code locally follow these steps:

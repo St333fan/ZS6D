@@ -141,28 +141,28 @@ def calculate_advanced_similarity(img1, img2):
         'warp_similarity': warp_sim*10
     }
 
-def process_image(model, image_path, ref_image, device, trfs, imagenet_mean_tensor, imagenet_std_tensor, mask_array):
+def process_image(model, image_path, segmented_image, device, trfs, imagenet_mean_tensor, imagenet_std_tensor, mask_array):
     """
     Process an image using a given model and compare it to a reference image.
 
     This function loads an image, applies transformations, runs it through a model along with a reference image,
     decodes the output, and calculates the similarity between the decoded image and the input image.
 
-    Parameters:
-    model (torch.nn.Module): The neural network model to use for processing.
-    image_path (str): Path to the image file to be processed.
-    ref_image (torch.Tensor): The reference image tensor.
-    device (torch.device): The device (CPU or GPU) to run the computations on.
-    trfs (torchvision.transforms.Compose): Composition of image transformations to apply.
-    imagenet_mean_tensor (torch.Tensor): Mean tensor for ImageNet normalization.
-    imagenet_std_tensor (torch.Tensor): Standard deviation tensor for ImageNet normalization.
-    mask_array (numpy.ndarray): Array used to create a custom mask.
+    Args:
+    model: torch.nn.Module, The neural network model to use for processing.
+    image_path: str, Path to the image file to be processed.
+    segmented_image: torch.Tensor, The reference image tensor.
+    device: torch.device, The device (CPU or GPU) to run the computations on.
+    trfs: torchvision.transforms.Compose, Composition of image transformations to apply.
+    imagenet_mean_tensor: torch.Tensor, Mean tensor for ImageNet normalization.
+    imagenet_std_tensor: torch.Tensor, Standard deviation tensor for ImageNet normalization.
+    mask_array: numpy.ndarray, Array used to create a custom mask.
 
     Returns:
     torch.Tensor: The decoded image tensor.
     """
-    image1 = ref_image
-    image2 = trfs(Image.open(image_path).convert('RGB')).to(device, non_blocking=True).unsqueeze(0)
+    image1 = segmented_image  # segmented object
+    image2 = trfs(Image.open(image_path).convert('RGB')).to(device, non_blocking=True).unsqueeze(0)  # template image
 
     custom_mask = create_custom_mask(mask_array)
 
@@ -182,21 +182,21 @@ def process_image(model, image_path, ref_image, device, trfs, imagenet_mean_tens
 
     return decoded_image
 
-def process(ref_image_path=None, ref_image=None, ckpt_path=None, output_folder=None, assets_folder=None, mask_array=None):
+def process(segmented_image_path=None, segmented_image=None, ckpt_path=None, output_folder=None, assets_folder=None, mask_array=None):
     """
         Process a set of images using a reference image and a pre-trained model.
 
         This function sets up the environment, loads a model and a reference image,
         and then processes all images in a specified folder, saving the decoded results.
 
-        Parameters:
-        ref_image_path (str): Path to the reference image file.
-        ckpt_path (str): Path to the checkpoint file containing the pre-trained model.
-        output_folder (str): Path to the folder where decoded images will be saved.
-        assets_folder (str): Path to the folder containing images to be processed.
+        Args:
+        segmented_image_path: str, Path to the reference image file.
+        ckpt_path: str, Path to the checkpoint file containing the pre-trained model.
+        output_folder: str, Path to the folder where decoded images will be saved.
+        assets_folder: str, Path to the folder containing images to be processed.
 
         Returns:
-        None
+        None, saves images is folder, should be adapted in the future to save them in the RAM
     """
     device = torch.device('cuda:0' if torch.cuda.is_available() and torch.cuda.device_count() > 0 else 'cpu')
 
@@ -207,10 +207,10 @@ def process(ref_image_path=None, ref_image=None, ckpt_path=None, output_folder=N
     trfs = Compose([ToTensor(), Normalize(mean=imagenet_mean, std=imagenet_std),transforms.Resize((224, 224))])
 
     # Load the reference image
-    if ref_image_path != None:
-        ref_image = trfs(Image.open(ref_image_path).convert('RGB')).to(device, non_blocking=True).unsqueeze(0)
+    if segmented_image_path != None:
+        segmented_image = trfs(Image.open(segmented_image_path).convert('RGB')).to(device, non_blocking=True).unsqueeze(0)
     else:
-        ref_image = trfs(ref_image.convert('RGB')).to(device, non_blocking=True).unsqueeze(0)
+        segmented_image = trfs(segmented_image.convert('RGB')).to(device, non_blocking=True).unsqueeze(0)
 
     # load model
     ckpt = torch.load(ckpt_path, 'cpu')
@@ -223,7 +223,7 @@ def process(ref_image_path=None, ref_image=None, ckpt_path=None, output_folder=N
     for filename in os.listdir(assets_folder):
         if filename.lower().endswith(('.png', '.jpg', '.jpeg')):
             image_path = os.path.join(assets_folder, filename)
-            decoded_image = process_image(model, image_path, ref_image, device, trfs, imagenet_mean_tensor,
+            decoded_image = process_image(model, image_path, segmented_image, device, trfs, imagenet_mean_tensor,
                                           imagenet_std_tensor, mask_array)
 
             # Save the decoded image
@@ -231,17 +231,17 @@ def process(ref_image_path=None, ref_image=None, ckpt_path=None, output_folder=N
             torchvision.utils.save_image(decoded_image, output_path)
             print(f'Decoded image saved: {output_path}')
 
-def find_match(ref_image_path=None, ref_image=None, decoded_images_dir=None, mask_array=None):
+def find_match(segmented_image_path=None, segmented_image=None, decoded_images_dir=None, mask_array=None):
     """
         Match a reference image with several decoded images
 
         Args:
-        ref_image_path: String, path to the reference image file
-        decoded_images_dir: String, path to the decoded image files
+        segmented_image_path: str, path to the reference image file
+        decoded_images_dir: str, path to the decoded image files
         mask_array: np.Array, used mask
 
         Returns:
-        String: Name of best matched image
+        str: Name of best matched image
     """
     def expand_mask(mask_array, patch_size):
         # Convert mask array to numpy array
@@ -272,19 +272,14 @@ def find_match(ref_image_path=None, ref_image=None, decoded_images_dir=None, mas
         if isinstance(img2, Image.Image):
             img2 = np.array(img2)
 
-        # Ensure both images are in the same color space (assuming BGR for OpenCV)
+        # Ensure both images are in the same color space
         if img1.shape[-1] == 3:
             img1 = cv2.cvtColor(img1, cv2.COLOR_RGB2BGR)
         if img2.shape[-1] == 3:
             img2 = cv2.cvtColor(img2, cv2.COLOR_RGB2BGR)
 
-        # Get dimensions from img2
         h, w = img2.shape[:2]
-
-        # Resize img1 to match img2
         img1_resized = cv2.resize(img1, (w, h))
-
-        # Convert images to grayscale for SSIM
         gray1 = cv2.cvtColor(img1_resized, cv2.COLOR_BGR2GRAY)
         gray2 = cv2.cvtColor(img2, cv2.COLOR_BGR2GRAY)
 
@@ -299,10 +294,10 @@ def find_match(ref_image_path=None, ref_image=None, decoded_images_dir=None, mas
         return ssim_value, mse
 
     # Load images
-    if ref_image_path!=None:
-        img1 = cv2.imread(ref_image_path)
+    if segmented_image_path!=None:
+        img1 = cv2.imread(segmented_image_path)
     else:
-        img1 = ref_image
+        img1 = segmented_image
 
     top_10 = []
 
@@ -310,7 +305,7 @@ def find_match(ref_image_path=None, ref_image=None, decoded_images_dir=None, mas
     for filename in os.listdir(decoded_images_dir):
         if filename.endswith(('.png', '.jpg', '.jpeg')):
             img_path = os.path.join(decoded_images_dir, filename)
-            img2 = cv2.imread(img_path)
+            img2 = cv2.imread(img_path) # decoded images
             print(f"Processing: {filename}")
 
             # Apply mask
@@ -322,7 +317,7 @@ def find_match(ref_image_path=None, ref_image=None, decoded_images_dir=None, mas
             print(f"SSIM: {ssim_value:.4f}")
             print(f"MSE: {mse:.4f}")
 
-            # Use a max heap to keep track of the top 10 matches
+            # max heap to keep track of the top 10 matches
             if len(top_10) < 10:
                 heappush(top_10, (-mse, filename))
             elif -mse > top_10[0][0]:
@@ -331,16 +326,15 @@ def find_match(ref_image_path=None, ref_image=None, decoded_images_dir=None, mas
     # Sort the results by MSE (ascending order)
     top_10.sort(key=lambda x: -x[0])
 
-    # Print results
     print("\nTop 10 matches:")
     for i, (neg_mse, filename) in enumerate(top_10, 1):
         print(f"{i}. {filename} (MSE: {-neg_mse:.4f})")
 
-    # Return the name of the best match
     return top_10[0][1]
 
 def main():
     start_time = time.time()
+
     # Alternative masks
     if False:
         image_size = 224
@@ -381,13 +375,22 @@ def main():
         [1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1]
     ]
 
-    process('/home/stefan/PycharmProjects/ZS6D/test/drill/3.png',
-                     '/home/stefan/PycharmProjects/ZS6D/pretrained_models/CroCo.pth',#_V2_ViTLarge_BaseDecoder
-                     '/home/stefan/PycharmProjects/ZS6D/assets_match/decoded_images',
-                    '/home/stefan/PycharmProjects/ZS6D/assets_match', mask_array)
+    # segmented_image_path: the segemented object
+    # ckpt_path: ViT weights
+    # output_folder: use ./ZS6D/assets_match/decoded_images
+    # assets_folder: where all the dataset iamges are located
+    # mask_array: the mask
+    process(segmented_image_path='./test/test_crocom/3.png',
+            ckpt_path='./pretrained_models/CroCo.pth',  #_V2_ViTLarge_BaseDecoder
+            output_folder='./assets_match/decoded_images',
+            assets_folder='./templates/ycbv_desc/obj_15', mask_array=mask_array)
 
-    best_match = find_match('/home/stefan/PycharmProjects/ZS6D/test/drill/3.png',
-                             '/home/stefan/PycharmProjects/ZS6D/assets_match/decoded_images', mask_array)
+    # segmented_image_path: the segemented object
+    # ref: use ./ZS6D/assets_match/decoded_images in future should be hold in RAM
+    # mask_array: the mask
+    best_match = find_match(segmented_image_path='/test/test_crocom/3.png',
+                            decoded_images_dir='/home/stefan/PycharmProjects/ZS6D/assets_match/decoded_images',
+                            mask_array=mask_array)
 
     print(f"The image with the lowest MSE is: {best_match}")
 
