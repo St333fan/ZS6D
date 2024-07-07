@@ -40,18 +40,13 @@ sudo apt-get install libxcb-xinerama0 libxcb-icccm4 libxcb-image0 libxcb-keysyms
 - Try to run CroCo first, because it also has some **setup steps** which are needed for **CroCoM**, if you are Pro you can try to go straight to CroCoM and debug on the fly 
 - In [pretrained_models](pretrained_models) is [crocom.py](pretrained_models%2Fcrocom.py) put it into the folder from the **original corco (subgit)** where **croco.py** is found
 - Start [croco_match.py](croco_match.py) for testing on **single segmented objects**, by changing the paths in the **main** function
-- [evaluate_zs6d_bop_crocom.py](evaluate_zs6d_bop_crocom.py) evaluates on **myset (small ybvc testset)**
-- **There is currently no implementation for CroCoM in test_zs6d_crocom.py it does not exist!**
----
-- Evaluation is done with [evaluate_zs6d_bop_crocom.py](evaluate_zs6d_bop_crocom.py), check also the files in [bop_eval_configs](zs6d_configs%2Fbop_eval_configs)
+- [evaluate_zs6d_bop_crocom.py](evaluate_zs6d_bop_crocom.py) evaluates on **myset (small ybvc testset)** , check also the files in [bop_eval_configs](zs6d_configs%2Fbop_eval_configs)
 - Analyse the created evaluation data with [analyse_evaluated_zs6d_data.py](analyse_evaluated_zs6d_data.py)
 ```
 # change the codeline to the created evaluation data depending on what model/pipeline you have evaluated
 (calculated_data = parse_calculated_data('./results/results_ycbv_bop_myset_crocomv2.csv'))
 ```
-
-
-
+- **There is currently no implementation for CroCoM in test_zs6d_crocom.py it does not exist!**
 
 ## For what are the additional Scripts?
 **No working paths are guaranteed! Personal testing Scripts!**
