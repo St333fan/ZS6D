@@ -7,9 +7,9 @@ Dino vs CroCo (Cross View Completion, self-supervised pre-trained ViT)
 
 ![cpipeline](./assets/croco_pipeline.png)
 
-After coming to the conclusion that Dino is superior to CroCo in descriptor matching, a new pipeline Cross Completion Match (CroCoM) is proposed, for
-template matching building on the self-supervised training method. Cross view completion allows us to compare our
-templates with each other to find the best match for the segmented to-be-found object in 6D.
+After coming to the conclusion that Dino is superior to CroCo in descriptor matching, a new pipeline Cross Completion Match (CroCoM) is proposed for
+template matching building on the self-supervised training method. Cross view completion allows us to compare all
+templates with each other to find the best match for the segmented to-be-found object in 6D by using the reconstruction task of CroCo.
 
 ## How to install Git for CroCo and CroCoM 
 - Please go to the section "Overview of the original ZS6D-Dino Project" and follow the installation process from there.
@@ -24,12 +24,11 @@ sudo apt-get install libxcb-xinerama0 libxcb-icccm4 libxcb-image0 libxcb-keysyms
 - **General rule, you will run into several PATH issues! I mentioned the most important ones!**
 - Download **CroCo.pth** and **CroCo_V2_ViTLarge_BaseDecoder.pth** from the original croco git and put them into [pretrained_models](pretrained_models)
 - Change import statements in the croco (subgit), there should be 4, your IDE will mark it either way
-- [prepare_templates_and_gt_croco.py](prepare_templates_and_gt_croco.py) prepares the croco descriptoren, if you want to run it change the paths to your dataset in [cfg_template_gt_generation_ycbv_croco.json](zs6d_configs%2Ftemplate_gt_preparation_configs%2Fcfg_template_gt_generation_ycbv_croco.json)
+- [prepare_templates_and_gt_croco.py](prepare_templates_and_gt_croco.py) prepares the croco descriptors, if you want to run it change the paths to your dataset in [cfg_template_gt_generation_ycbv_croco.json](zs6d_configs%2Ftemplate_gt_preparation_configs%2Fcfg_template_gt_generation_ycbv_croco.json)
 - [bop_eval_configs](zs6d_configs%2Fbop_eval_configs) check all the paths in the **.json files**
-- [test_zs6d_croco.py](test_zs6d_croco.py) is the test script, if you run it, it probably will find no pose because CroCo does not work for the ZS6D pipeline
+- [test_zs6d_croco.py](test_zs6d_croco.py) is the test script, if you run it, it will probably find no pose because it seems that CroCo does not work in the ZS6D pipeline
 - To test with **CroCo_V2_ViTLarge_BaseDecoder** just exchange it in the function call with **crocov2**
-
-
+---
 - evaluation is done with [evaluate_zs6d_bop_croco.py](evaluate_zs6d_bop_croco.py), check also the files in [bop_eval_configs](zs6d_configs%2Fbop_eval_configs)
 - analyse the created evaluation data with [analyse_evaluated_zs6d_data.py](analyse_evaluated_zs6d_data.py)
 
@@ -39,8 +38,7 @@ sudo apt-get install libxcb-xinerama0 libxcb-icccm4 libxcb-image0 libxcb-keysyms
 - Start [croco_match.py](croco_match.py) for testing on **single segmented objects**, by changing the paths in the **main** function
 - [evaluate_zs6d_bop_crocom.py](evaluate_zs6d_bop_crocom.py) evaluates on **myset (small ybvc testset)**
 - **There is currently no implementation for CroCoM in test_zs6d_crocom.py it does not exist!**
-
-
+---
 - Evaluation is done with [evaluate_zs6d_bop_crocom.py](evaluate_zs6d_bop_crocom.py), check also the files in [bop_eval_configs](zs6d_configs%2Fbop_eval_configs)
 - Analyse the created evaluation data with [analyse_evaluated_zs6d_data.py](analyse_evaluated_zs6d_data.py)
 
