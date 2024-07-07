@@ -168,14 +168,14 @@ if __name__=="__main__":
 
                     # run whole process or manual checking and extracting
                     if True:
-                        croco_match.process(ref_image=img_crop,
+                        croco_match.process(segmented_image=img_crop,
                                             ckpt_path='/home/stefan/PycharmProjects/ZS6D/pretrained_models/CroCo_V2_ViTLarge_BaseDecoder.pth',
                                             # _V2_ViTLarge_BaseDecoder
                                             output_folder='/home/stefan/PycharmProjects/ZS6D/assets_match/decoded_images',
                                             assets_folder=assets_folder,
                                             mask_array=mask_array)
 
-                        best_match = croco_match.find_match(ref_image=img_crop,
+                        best_match = croco_match.find_match(segmented_image=img_crop,
                                         decoded_images_dir='/home/stefan/PycharmProjects/ZS6D/assets_match/decoded_images',
                                         mask_array=mask_array)
 
