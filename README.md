@@ -11,6 +11,8 @@ After coming to the conclusion that Dino is superior to CroCo in descriptor matc
 template matching building on the self-supervised training method. Cross view completion allows us to compare all
 templates with each other to find the best match for the segmented to-be-found object in 6D by using the reconstruction task of CroCo.
 
+Paper is here --> [From_DINO_over_CroCo_to_CroCoM_Paper.pdf](assets%2FFrom_DINO_over_CroCo_to_CroCoM_Paper.pdf)
+
 ## How to install Git for CroCo and CroCoM 
 - We used BOP-YCBV 
 - Please go to the section "Overview of the original ZS6D-Dino Project" and follow the installation process from there.
